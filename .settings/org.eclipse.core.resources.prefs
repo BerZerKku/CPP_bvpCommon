@@ -1,0 +1,5 @@
+eclipse.preferences.version=1
+encoding//test/BvpPkg_Test.cpp=UTF-8
+encoding//test/main.cpp=UTF-8
+encoding/bvpCommon.cpp=Cp1251
+encoding/bvpCommon.hpp=UTF-8
