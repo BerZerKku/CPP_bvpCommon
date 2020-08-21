@@ -8,6 +8,7 @@
     FRIEND_TEST(BvpPkg_Test, calcChecksumAvant); \
     FRIEND_TEST(BvpPkg_Test, calcChecksumCompl0); \
     FRIEND_TEST(BvpPkg_Test, calcChecksumHabr); \
+    FRIEND_TEST(BvpPkg_Test, checkRx); \
     FRIEND_TEST(BvpPkg_Test, isChecksum); \
     FRIEND_TEST(BvpPkg_Test, getChecksum); \
     FRIEND_TEST(BvpPkg_Test, getRxPkg); \
@@ -20,6 +21,7 @@
 using namespace std;
 
 namespace BVP {
+
 
 class BvpPkg_Test: public ::testing::Test {
 
@@ -36,6 +38,7 @@ protected:
     delete bvpPkg;
   }
 };
+
 
 //
 TEST_F(BvpPkg_Test, calcChecksumAvant) {
@@ -195,6 +198,50 @@ TEST_F(BvpPkg_Test, calcChecksumHabr) {
     uint8_t buf[] = {0xFF, 0xFE, 0xFD, 0xFC, 0x1F, 0x2E, 0x3C, 0x4D};
     ASSERT_EQ(0xED, bvpPkg->calcChecksumHabr(buf, sizeof(buf)));
   }
+}
+
+//
+TEST_F(BvpPkg_Test, checkRx) {
+  uint16_t len = 0;
+  BvpPkg::pkg_t *pkgTx = (BvpPkg::pkg_t *) bvpPkg->getTxPkg(len);
+  BvpPkg::pkg_t *pkgRx = (BvpPkg::pkg_t *) bvpPkg->getRxPkg(len);
+
+  ASSERT_FALSE(bvpPkg->checkRx());
+
+  pkgRx->sop = bvpPkg->c_sop;
+  ASSERT_FALSE(bvpPkg->checkRx());
+
+  pkgRx->sequence = pkgTx->sequence;
+  ASSERT_FALSE(bvpPkg->checkRx());
+
+  pkgRx->checksum = bvpPkg->getChecksum(*pkgRx);
+  ASSERT_TRUE(bvpPkg->checkRx());
+
+  pkgTx->sequence += 1;
+  ASSERT_FALSE(bvpPkg->checkRx());
+
+  pkgRx->sequence = pkgTx->sequence;
+  ASSERT_FALSE(bvpPkg->checkRx());
+  pkgRx->checksum = bvpPkg->getChecksum(*pkgRx);
+  ASSERT_TRUE(bvpPkg->checkRx());
+
+  pkgRx->sop -= 1;
+  ASSERT_FALSE(bvpPkg->checkRx());
+  pkgRx->checksum = bvpPkg->getChecksum(*pkgRx);
+  ASSERT_FALSE(bvpPkg->checkRx());
+  pkgRx->sop = bvpPkg->c_sop;
+  pkgRx->checksum = bvpPkg->getChecksum(*pkgRx);
+  ASSERT_TRUE(bvpPkg->checkRx());
+
+  pkgRx->data[0] += 1;
+  ASSERT_FALSE(bvpPkg->checkRx());
+  pkgRx->checksum = bvpPkg->getChecksum(*pkgRx);
+  ASSERT_TRUE(bvpPkg->checkRx());
+
+  pkgRx->data[bvpPkg->c_dataLen - 1] += 1;
+  ASSERT_FALSE(bvpPkg->checkRx());
+  pkgRx->checksum = bvpPkg->getChecksum(*pkgRx);
+  ASSERT_TRUE(bvpPkg->checkRx());
 }
 
 //

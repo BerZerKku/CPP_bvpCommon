@@ -22,6 +22,8 @@ BvpPkg::BvpPkg() {
   assert(sizeof(pkgTx.data) == c_dataLen);
   assert(sizeof(pkgTx.checksum) == 1);
   assert(sizeof(pkg_t) == 36);
+
+  pkgRx.sequence = pkgTx.sequence - 1;
 }
 
 
