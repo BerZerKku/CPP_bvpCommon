@@ -5,16 +5,21 @@
 #include <iostream>
 
 #define TEST_FRIENDS \
+    FRIEND_TEST(BvpPkg_Test, addDataToPkg); \
     FRIEND_TEST(BvpPkg_Test, calcChecksumAvant); \
     FRIEND_TEST(BvpPkg_Test, calcChecksumCompl0); \
     FRIEND_TEST(BvpPkg_Test, calcChecksumHabr); \
     FRIEND_TEST(BvpPkg_Test, checkRx); \
     FRIEND_TEST(BvpPkg_Test, isChecksum); \
     FRIEND_TEST(BvpPkg_Test, getChecksum); \
+    FRIEND_TEST(BvpPkg_Test, getDataFromPkg); \
     FRIEND_TEST(BvpPkg_Test, getRxPkg); \
     FRIEND_TEST(BvpPkg_Test, getTxPkg); \
-    FRIEND_TEST(BvpPkg_Test, prepareTx); \
-    FRIEND_TEST(BvpPkg_Test, sequenceModify);
+    FRIEND_TEST(BvpPkg_Test, sequenceModify); \
+    FRIEND_TEST(BvpPkg_Test, sequenceRxCheck); \
+    FRIEND_TEST(BvpPkg_Test, sequenceTxGet); \
+    FRIEND_TEST(BvpPkg_Test, setMaster); \
+    FRIEND_TEST(BvpPkg_Test, setSlave);
 
 #include "../bvpCommon.hpp"
 
@@ -39,6 +44,161 @@ protected:
   }
 };
 
+//
+TEST_F(BvpPkg_Test, addDataToPkg) {
+  uint16_t seq = 1;
+  uint16_t len = 0;
+  uint16_t size = bvpPkg->c_dataLen;
+  uint8_t ref[size + 2] = {0};
+
+  // Состояние после инициализации
+  ASSERT_EQ(0, bvpPkg->pkgTx.sop);
+  ASSERT_EQ(0, bvpPkg->pkgTx.sequence);
+  ASSERT_EQ(0, memcmp(bvpPkg->pkgTx.data, ref, size));
+  ASSERT_EQ(0, bvpPkg->pkgTx.checksum);
+
+  // Данные в процессе не должны измениться
+  for(uint8_t i = 0; i < sizeof(ref); i++) {
+    ref[i] = '1' + i%10;
+  }
+
+  bvpPkg->setMaster();
+
+  { // Нет данных.
+    uint8_t data[size] = {0};
+
+    len = 0;
+    for(uint16_t i = 0; i < len; i++) {
+      data[i] = ref[i];
+    }
+
+    // Формирование пакета
+    ASSERT_TRUE(bvpPkg->addDataToPkg(ref, 0));
+    ASSERT_EQ(bvpPkg->c_sop, bvpPkg->pkgTx.sop);
+    ASSERT_EQ(seq, bvpPkg->pkgTx.sequence);
+    ASSERT_EQ(0, memcmp(bvpPkg->pkgTx.data, data, size));
+    ASSERT_EQ(bvpPkg->getChecksum(bvpPkg->pkgTx), bvpPkg->pkgTx.checksum);
+  }
+
+  { // Один байт данных.
+    uint8_t data[size] = {0};
+
+    len = 1;
+    for(uint16_t i = 0; i < len; i++) {
+      data[i] = ref[i];
+    }
+
+    // Формирование пакета
+    ASSERT_TRUE(bvpPkg->addDataToPkg(ref, len));
+    ASSERT_EQ(bvpPkg->c_sop, bvpPkg->pkgTx.sop);
+    ASSERT_EQ(++seq, bvpPkg->pkgTx.sequence);
+    ASSERT_EQ(0, memcmp(bvpPkg->pkgTx.data, data, size));
+    ASSERT_EQ(bvpPkg->getChecksum(bvpPkg->pkgTx), bvpPkg->pkgTx.checksum);
+  }
+
+  { // Несколько байт данных.
+    uint8_t data[size] = {0};
+
+    len = 17;
+    for(uint16_t i = 0; i < len; i++) {
+      data[i] = ref[i];
+    }
+
+    // Формирование пакета
+    ASSERT_TRUE(bvpPkg->addDataToPkg(ref, len));
+    ASSERT_EQ(bvpPkg->c_sop, bvpPkg->pkgTx.sop);
+    ASSERT_EQ(++seq, bvpPkg->pkgTx.sequence);
+    ASSERT_EQ(0, memcmp(bvpPkg->pkgTx.data, data, size));
+    ASSERT_EQ(bvpPkg->getChecksum(bvpPkg->pkgTx), bvpPkg->pkgTx.checksum);
+  }
+
+  { // Формирование пакета с переполнением номера последовательности.
+    // А также количеством байт данных меньшим чем в предыдущей передаче
+    uint8_t data[size] = {0};
+
+    len = 1;
+    for(uint16_t i = 0; i < len; i++) {
+      data[i] = ref[i];
+    }
+
+    seq = 1;
+    bvpPkg->pkgTx.sequence = 65535;
+
+    // Формирование пакета
+    ASSERT_TRUE(bvpPkg->addDataToPkg(ref, len));
+    ASSERT_EQ(bvpPkg->c_sop, bvpPkg->pkgTx.sop);
+    ASSERT_EQ(seq, bvpPkg->pkgTx.sequence);
+    ASSERT_EQ(0, memcmp(bvpPkg->pkgTx.data, data, size));
+    ASSERT_EQ(bvpPkg->getChecksum(bvpPkg->pkgTx), bvpPkg->pkgTx.checksum);
+  }
+
+  { // Максимальное количество байт данных.
+    uint8_t data[size] = {0};
+
+    len = size;
+    for(uint16_t i = 0; i < len; i++) {
+      data[i] = ref[i];
+    }
+
+    // Формирование пакета
+    ASSERT_TRUE(bvpPkg->addDataToPkg(ref, len));
+    ASSERT_EQ(bvpPkg->c_sop, bvpPkg->pkgTx.sop);
+    ASSERT_EQ(++seq, bvpPkg->pkgTx.sequence);
+    ASSERT_EQ(0, memcmp(bvpPkg->pkgTx.data, data, size));
+    ASSERT_EQ(bvpPkg->getChecksum(bvpPkg->pkgTx), bvpPkg->pkgTx.checksum);
+  }
+
+  { // Количество байт данных больше максимального.
+    uint8_t data[sizeof(ref)] = {0};
+
+    len = sizeof(data);
+    for(uint16_t i = 0; i < len; i++) {
+      data[i] = ref[i] + 5;
+    }
+
+    // Формирование пакета
+    ASSERT_FALSE(bvpPkg->addDataToPkg(data, len));
+    ASSERT_EQ(bvpPkg->c_sop, bvpPkg->pkgTx.sop);
+    ASSERT_EQ(seq, bvpPkg->pkgTx.sequence);
+    ASSERT_EQ(0, memcmp(bvpPkg->pkgTx.data, ref, size));
+    ASSERT_EQ(bvpPkg->getChecksum(bvpPkg->pkgTx), bvpPkg->pkgTx.checksum);
+  }
+
+  { // Несколько байт данных (еще раз).
+    uint8_t data[size] = {0};
+
+    len = 17;
+    for(uint16_t i = 0; i < len; i++) {
+      data[i] = ref[i];
+    }
+
+    // Формирование пакета
+    ASSERT_TRUE(bvpPkg->addDataToPkg(ref, len));
+    ASSERT_EQ(bvpPkg->c_sop, bvpPkg->pkgTx.sop);
+    ASSERT_EQ(++seq, bvpPkg->pkgTx.sequence);
+    ASSERT_EQ(0, memcmp(bvpPkg->pkgTx.data, data, size));
+    ASSERT_EQ(bvpPkg->getChecksum(bvpPkg->pkgTx), bvpPkg->pkgTx.checksum);
+  }
+
+  { // Несколько байт данных в режиме SLAVE
+    uint8_t data[size] = {0};
+
+    len = 17;
+    for(uint16_t i = 0; i < len; i++) {
+      data[i] = ref[i];
+    }
+
+    bvpPkg->setSlave();
+    bvpPkg->pkgRx.sequence = 34;
+
+    // Формирование пакета
+    ASSERT_TRUE(bvpPkg->addDataToPkg(ref, len));
+    ASSERT_EQ(bvpPkg->c_sop, bvpPkg->pkgTx.sop);
+    ASSERT_EQ(bvpPkg->pkgRx.sequence, bvpPkg->pkgTx.sequence);
+    ASSERT_EQ(0, memcmp(bvpPkg->pkgTx.data, data, size));
+    ASSERT_EQ(bvpPkg->getChecksum(bvpPkg->pkgTx), bvpPkg->pkgTx.checksum);
+  }
+}
 
 //
 TEST_F(BvpPkg_Test, calcChecksumAvant) {
@@ -206,6 +366,8 @@ TEST_F(BvpPkg_Test, checkRx) {
   BvpPkg::pkg_t *pkgTx = (BvpPkg::pkg_t *) bvpPkg->getTxPkg(len);
   BvpPkg::pkg_t *pkgRx = (BvpPkg::pkg_t *) bvpPkg->getRxPkg(len);
 
+  bvpPkg->setMaster();
+
   ASSERT_FALSE(bvpPkg->checkRx());
 
   pkgRx->sop = bvpPkg->c_sop;
@@ -242,6 +404,9 @@ TEST_F(BvpPkg_Test, checkRx) {
   ASSERT_FALSE(bvpPkg->checkRx());
   pkgRx->checksum = bvpPkg->getChecksum(*pkgRx);
   ASSERT_TRUE(bvpPkg->checkRx());
+
+  bvpPkg->setSlave();
+  ASSERT_TRUE(bvpPkg->checkRx());
 }
 
 //
@@ -262,6 +427,86 @@ TEST_F(BvpPkg_Test, getChecksum) {
     pkg.data[i] = 0x31*i;
   }
   ASSERT_EQ(bvpPkg->calcChecksumHabr(buf, size), bvpPkg->getChecksum(pkg));
+}
+
+//
+TEST_F(BvpPkg_Test, getDataFromPkg) {
+  uint16_t len = 0;
+  uint16_t size = bvpPkg->c_dataLen;
+  BvpPkg::pkg_t *pkg = nullptr;
+  uint8_t data[size] = {0};
+
+  pkg = reinterpret_cast<BvpPkg::pkg_t *> (bvpPkg->getRxPkg(len));
+
+  // Состояние после инициализации
+  ASSERT_EQ(0, pkg->sop);
+  ASSERT_EQ(65535, pkg->sequence);
+  ASSERT_EQ(0, memcmp(pkg->data, data, size));
+  ASSERT_EQ(0, pkg->checksum);
+
+  // Данные в процессе не должны измениться
+  for(uint8_t i = 0; i < sizeof(size); i++) {
+    pkg->data[i] = '1' + i%10;
+    data[i] = pkg->data[i];
+  }
+
+  bvpPkg->setMaster();
+
+  ASSERT_FALSE(bvpPkg->getDataFromPkg(data, len));
+
+  // Корректный пакет
+  pkg->sop = bvpPkg->c_sop;
+  pkg->sequence = bvpPkg->pkgTx.sequence;
+  pkg->checksum = bvpPkg->getChecksum(*pkg);
+
+  ASSERT_TRUE(bvpPkg->getDataFromPkg(data, len));
+  ASSERT_EQ(0, memcmp(pkg->data, data, size));
+
+  // Ошибочный sop
+  pkg->sop++;
+  pkg->checksum = bvpPkg->getChecksum(*pkg);
+  ASSERT_FALSE(bvpPkg->getDataFromPkg(data, len));
+
+  // Ошибочная последовательность
+  pkg->sop =bvpPkg->c_sop;
+  pkg->sequence++;
+  pkg->checksum = bvpPkg->getChecksum(*pkg);
+  ASSERT_FALSE(bvpPkg->getDataFromPkg(data, len));
+
+  // Ошибочная контрольная сумма
+  pkg->sop =bvpPkg->c_sop;
+  pkg->sequence = bvpPkg->pkgTx.sequence;
+  ASSERT_FALSE(bvpPkg->getDataFromPkg(data, len));
+
+  // Корректный пакет
+  pkg->checksum = bvpPkg->getChecksum(*pkg);
+  ASSERT_TRUE(bvpPkg->getDataFromPkg(data, len));
+  ASSERT_EQ(0, memcmp(pkg->data, data, size));
+
+  bvpPkg->setSlave();
+  ASSERT_TRUE(bvpPkg->getDataFromPkg(data, len));
+  ASSERT_EQ(0, memcmp(pkg->data, data, size));
+
+}
+
+//
+TEST_F(BvpPkg_Test, getRxPkg) {
+  uint16_t len = 0;
+  uint8_t *buf = nullptr;
+
+  buf = bvpPkg->getRxPkg(len);
+  ASSERT_EQ(sizeof(bvpPkg->pkgRx), len);
+  ASSERT_EQ(buf, reinterpret_cast<uint8_t *> (&bvpPkg->pkgRx));
+}
+
+//
+TEST_F(BvpPkg_Test, getTxPkg) {
+  uint16_t len = 0;
+  uint8_t *buf = nullptr;
+
+  buf = bvpPkg->getTxPkg(len);
+  ASSERT_EQ(sizeof(bvpPkg->pkgTx), len);
+  ASSERT_EQ(buf, reinterpret_cast<uint8_t *> (&bvpPkg->pkgTx));
 }
 
 //
@@ -291,68 +536,6 @@ TEST_F(BvpPkg_Test, isChecksum) {
 }
 
 //
-TEST_F(BvpPkg_Test, getRxPkg) {
-  uint16_t len = 0;
-  uint8_t *buf = nullptr;
-
-  buf = bvpPkg->getRxPkg(len);
-  ASSERT_EQ(sizeof(bvpPkg->pkgRx), len);
-  ASSERT_EQ(buf, reinterpret_cast<uint8_t *> (&bvpPkg->pkgRx));
-}
-
-//
-TEST_F(BvpPkg_Test, getTxPkg) {
-  uint16_t len = 0;
-  uint8_t *buf = nullptr;
-
-  buf = bvpPkg->getTxPkg(len);
-  ASSERT_EQ(sizeof(bvpPkg->pkgTx), len);
-  ASSERT_EQ(buf, reinterpret_cast<uint8_t *> (&bvpPkg->pkgTx));
-}
-
-//
-TEST_F(BvpPkg_Test, prepareTx) {
-  uint16_t size = bvpPkg->c_dataLen;
-  uint8_t data[size] = {0};
-
-  // Состояние после инициализации
-  ASSERT_EQ(0, bvpPkg->pkgTx.sop);
-  ASSERT_EQ(0, bvpPkg->pkgTx.sequence);
-  ASSERT_EQ(0, memcmp(bvpPkg->pkgTx.data, data, sizeof(data)));
-  ASSERT_EQ(0, bvpPkg->pkgTx.checksum);
-
-  // Данные в процессе не должны измениться
-  for(uint8_t i = 0; i < size; i++) {
-    data[i] = '1' + i%10;
-    bvpPkg->pkgTx.data[i] = data[i];
-  }
-
-  // Формирование пакета
-  bvpPkg->prepareTx();
-  ASSERT_EQ(bvpPkg->c_sop, bvpPkg->pkgTx.sop);
-  ASSERT_EQ(1, bvpPkg->pkgTx.sequence);
-  ASSERT_EQ(0, memcmp(bvpPkg->pkgTx.data, data, size));
-  ASSERT_EQ(bvpPkg->getChecksum(bvpPkg->pkgTx), bvpPkg->pkgTx.checksum);
-
-  // Формирование пакета
-  bvpPkg->prepareTx();
-  ASSERT_EQ(bvpPkg->c_sop, bvpPkg->pkgTx.sop);
-  ASSERT_EQ(2, bvpPkg->pkgTx.sequence);
-  ASSERT_EQ(0, memcmp(bvpPkg->pkgTx.data, data, size));
-  ASSERT_EQ(bvpPkg->getChecksum(bvpPkg->pkgTx), bvpPkg->pkgTx.checksum);
-
-  // Формирование пакета с переполнением номера последовательности.
-  bvpPkg->pkgTx.sequence = 65535;
-  bvpPkg->prepareTx();
-  ASSERT_EQ(bvpPkg->c_sop, bvpPkg->pkgTx.sop);
-  ASSERT_EQ(1, bvpPkg->pkgTx.sequence);
-  ASSERT_EQ(0, memcmp(bvpPkg->pkgTx.data, data, size));
-  ASSERT_EQ(bvpPkg->getChecksum(bvpPkg->pkgTx), bvpPkg->pkgTx.checksum);
-
-
-}
-
-//
 TEST_F(BvpPkg_Test, sequenceModify) {
   uint16_t sequence = 0;
 
@@ -373,6 +556,57 @@ TEST_F(BvpPkg_Test, sequenceModify) {
 
   sequence = 65535;
   ASSERT_EQ(1, bvpPkg->sequenceModify(sequence));
+}
+
+//
+TEST_F(BvpPkg_Test, sequenceRxCheck) {
+  // Проверка для Ведомого устройства
+  ASSERT_TRUE(bvpPkg->sequenceRxCheck(bvpPkg->pkgRx.sequence));
+  ASSERT_TRUE(bvpPkg->sequenceRxCheck(bvpPkg->pkgRx.sequence + 5));
+
+  // Проверка для Ведущего устройства
+  bvpPkg->setMaster();
+
+  ASSERT_FALSE(bvpPkg->sequenceRxCheck(bvpPkg->pkgRx.sequence));
+  bvpPkg->pkgRx.sequence = bvpPkg->pkgTx.sequence;
+  ASSERT_TRUE(bvpPkg->sequenceRxCheck(bvpPkg->pkgRx.sequence));
+}
+
+//
+TEST_F(BvpPkg_Test, sequenceTxGet) {
+  ASSERT_EQ(0, bvpPkg->pkgTx.sequence);
+
+  // Проверка для Ведомого устройства
+  ASSERT_EQ(bvpPkg->pkgRx.sequence, bvpPkg->sequenceTxGet());
+
+  bvpPkg->pkgRx.sequence = 5;
+  ASSERT_EQ(bvpPkg->pkgRx.sequence, bvpPkg->sequenceTxGet());
+
+  // Проверка для Ведущего устройства
+  bvpPkg->setMaster();
+
+  ASSERT_EQ(bvpPkg->pkgTx.sequence + 1, bvpPkg->sequenceTxGet());
+
+  bvpPkg->pkgTx.sequence = 65535;
+  ASSERT_EQ(bvpPkg->sequenceModify(bvpPkg->pkgTx.sequence),
+      bvpPkg->sequenceTxGet());
+}
+
+TEST_F(BvpPkg_Test, setMaster) {
+  ASSERT_EQ(BvpPkg::MODE_slave, bvpPkg->mode);
+
+  bvpPkg->setMaster();
+
+  ASSERT_EQ(BvpPkg::MODE_master, bvpPkg->mode);
+}
+
+TEST_F(BvpPkg_Test, setSlave) {
+  ASSERT_EQ(BvpPkg::MODE_slave, bvpPkg->mode);
+
+  bvpPkg->mode = BvpPkg::MODE_master;
+  bvpPkg->setSlave();
+
+  ASSERT_EQ(BvpPkg::MODE_slave, bvpPkg->mode);
 }
 
 }
