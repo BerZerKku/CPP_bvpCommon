@@ -16,7 +16,8 @@
 
 namespace BVP {
 
-static const uint8_t BVP_STM32_i2c_address  = 0x3D;
+static const uint8_t BVP_STM32_i2c_address  = 0x3D; ///< Адрес I2C для STM32
+static const uint8_t DATA_LEN = 32;  ///< Количество байт данных в пакете.
 
 /** Пакет для общения STM32 и Raspberry на плате БВП61850.
  *
@@ -31,7 +32,6 @@ class BvpPkg {
   TEST_FRIENDS;
 
   static const uint8_t c_sop;           ///< Значение байта "Начало пакета".
-  static const uint8_t c_dataLen = 32;  ///< Количество байт данных в пакете.
 
   /** Структура пакета.
    *
@@ -47,7 +47,7 @@ class BvpPkg {
   struct __attribute__((packed)) pkg_t {
     uint8_t   sop = 0;                ///< Начало пакета.
     uint16_t  sequence = 0;           ///< Номер последовательности.
-    uint8_t   data[c_dataLen] = {0};  ///< Данные.
+    uint8_t   data[DATA_LEN] = {0};  ///< Данные.
     uint8_t   checksum = 0;           ///< Контрольная сумма.
   };
 

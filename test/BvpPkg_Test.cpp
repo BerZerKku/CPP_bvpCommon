@@ -48,7 +48,7 @@ protected:
 TEST_F(BvpPkg_Test, addDataToPkg) {
   uint16_t seq = 1;
   uint16_t len = 0;
-  uint16_t size = bvpPkg->c_dataLen;
+  uint16_t size = DATA_LEN;
   uint8_t ref[size + 2] = {0};
 
   // Состояние после инициализации
@@ -400,7 +400,7 @@ TEST_F(BvpPkg_Test, checkRx) {
   pkgRx->checksum = bvpPkg->getChecksum(*pkgRx);
   ASSERT_TRUE(bvpPkg->checkRx());
 
-  pkgRx->data[bvpPkg->c_dataLen - 1] += 1;
+  pkgRx->data[DATA_LEN - 1] += 1;
   ASSERT_FALSE(bvpPkg->checkRx());
   pkgRx->checksum = bvpPkg->getChecksum(*pkgRx);
   ASSERT_TRUE(bvpPkg->checkRx());
@@ -432,7 +432,7 @@ TEST_F(BvpPkg_Test, getChecksum) {
 //
 TEST_F(BvpPkg_Test, getDataFromPkg) {
   uint16_t len = 0;
-  uint16_t size = bvpPkg->c_dataLen;
+  uint16_t size = DATA_LEN;
   BvpPkg::pkg_t *pkg = nullptr;
   uint8_t data[size] = {0};
 

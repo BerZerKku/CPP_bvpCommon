@@ -11,16 +11,16 @@
 
 namespace BVP {
 
-const uint8_t BvpPkg::c_sop = 0xAB;   // Значение байта "Начало пакета".
+const uint8_t BvpPkg::c_sop = 0xAB;   // Р—РЅР°С‡РµРЅРёРµ Р±Р°Р№С‚Р° "РќР°С‡Р°Р»Рѕ РїР°РєРµС‚Р°".
 
-// Конструктор.
+// РљРѕРЅСЃС‚СЂСѓРєС‚РѕСЂ.
 BvpPkg::BvpPkg() : mode(MODE_slave)
 {
   assert(c_sop == 0xAB);
-  assert(c_dataLen == 32);
+  assert(DATA_LEN == 32);
   assert(sizeof(pkgTx.sop) == 1);
   assert(sizeof(pkgTx.sequence) == 2);
-  assert(sizeof(pkgTx.data) == c_dataLen);
+  assert(sizeof(pkgTx.data) == DATA_LEN);
   assert(sizeof(pkgTx.checksum) == 1);
   assert(sizeof(pkg_t) == 36);
   assert(MODE_slave == mode);
@@ -28,12 +28,12 @@ BvpPkg::BvpPkg() : mode(MODE_slave)
   pkgRx.sequence = pkgTx.sequence - 1;
 }
 
-// Подготовка пакета для передачи.
+// РџРѕРґРіРѕС‚РѕРІРєР° РїР°РєРµС‚Р° РґР»СЏ РїРµСЂРµРґР°С‡Рё.
 bool BvpPkg::addDataToPkg(uint8_t data[], uint16_t len){
   uint16_t i = 0;
-  bool state = (len <= c_dataLen);
+  bool state = (len <= DATA_LEN);
 
-  if (len <= c_dataLen) {
+  if (len <= DATA_LEN) {
     pkgTx.sop = c_sop;
 
     pkgTx.sequence = sequenceTxGet();
@@ -43,7 +43,7 @@ bool BvpPkg::addDataToPkg(uint8_t data[], uint16_t len){
       i++;
     }
 
-    while(i < c_dataLen) {
+    while(i < DATA_LEN) {
       pkgTx.data[i] = 0;
       i++;
     }
@@ -54,7 +54,7 @@ bool BvpPkg::addDataToPkg(uint8_t data[], uint16_t len){
   return state;
 }
 
-// Вычисляет 8-битную контрольную сумму для массива 8-битных данных.
+// Р’С‹С‡РёСЃР»СЏРµС‚ 8-Р±РёС‚РЅСѓСЋ РєРѕРЅС‚СЂРѕР»СЊРЅСѓСЋ СЃСѓРјРјСѓ РґР»СЏ РјР°СЃСЃРёРІР° 8-Р±РёС‚РЅС‹С… РґР°РЅРЅС‹С….
 uint8_t BvpPkg::calcChecksumAvant(const uint8_t buf[], uint16_t len) const {
   uint8_t checksum = 0;
 
@@ -67,7 +67,7 @@ uint8_t BvpPkg::calcChecksumAvant(const uint8_t buf[], uint16_t len) const {
 }
 
 
-// Вычисляет 8-битную контрольную сумму для массива 8-битных данных.
+// Р’С‹С‡РёСЃР»СЏРµС‚ 8-Р±РёС‚РЅСѓСЋ РєРѕРЅС‚СЂРѕР»СЊРЅСѓСЋ СЃСѓРјРјСѓ РґР»СЏ РјР°СЃСЃРёРІР° 8-Р±РёС‚РЅС‹С… РґР°РЅРЅС‹С….
 uint8_t BvpPkg::calcChecksumCompl0(const uint8_t buf[], uint16_t len) const {
   uint8_t checksum = 0;
 
@@ -81,7 +81,7 @@ uint8_t BvpPkg::calcChecksumCompl0(const uint8_t buf[], uint16_t len) const {
 }
 
 
-// Вычисляет 8-битную контрольную сумму для массива 8-битных данных.
+// Р’С‹С‡РёСЃР»СЏРµС‚ 8-Р±РёС‚РЅСѓСЋ РєРѕРЅС‚СЂРѕР»СЊРЅСѓСЋ СЃСѓРјРјСѓ РґР»СЏ РјР°СЃСЃРёРІР° 8-Р±РёС‚РЅС‹С… РґР°РЅРЅС‹С….
 uint8_t BvpPkg::calcChecksumHabr(const uint8_t buf[], uint16_t len) const {
   uint16_t checksum = 0xABBA;
 
@@ -95,7 +95,7 @@ uint8_t BvpPkg::calcChecksumHabr(const uint8_t buf[], uint16_t len) const {
 }
 
 
-// Проверяет принятые данные.
+// РџСЂРѕРІРµСЂСЏРµС‚ РїСЂРёРЅСЏС‚С‹Рµ РґР°РЅРЅС‹Рµ.
 bool BvpPkg::checkRx() const {
   bool check = false;
 
@@ -113,7 +113,7 @@ bool BvpPkg::checkRx() const {
 }
 
 
-// Вычисляет контрольную сумму для пакета.
+// Р’С‹С‡РёСЃР»СЏРµС‚ РєРѕРЅС‚СЂРѕР»СЊРЅСѓСЋ СЃСѓРјРјСѓ РґР»СЏ РїР°РєРµС‚Р°.
 uint8_t BvpPkg::getChecksum(const pkg_t &pkg) const {
   uint16_t len = sizeof(pkg_t) - sizeof(pkg.checksum);
   uint8_t *data = (uint8_t *) &pkg;
@@ -126,8 +126,8 @@ bool BvpPkg::getDataFromPkg(uint8_t data[], uint16_t &len) const {
   uint16_t i = 0;
   bool state = false;
 
-  if (checkRx() && (len < c_dataLen)) {
-    while((i < len) && (i < c_dataLen)) {
+  if (checkRx() && (len < DATA_LEN)) {
+    while((i < len) && (i < DATA_LEN)) {
       data[i] = pkgRx.data[i];
       i++;
     }
@@ -138,26 +138,26 @@ bool BvpPkg::getDataFromPkg(uint8_t data[], uint16_t &len) const {
   return state;
 }
 
-// Возвращает указатель на начало пакета для приема и его размер.
+// Р’РѕР·РІСЂР°С‰Р°РµС‚ СѓРєР°Р·Р°С‚РµР»СЊ РЅР° РЅР°С‡Р°Р»Рѕ РїР°РєРµС‚Р° РґР»СЏ РїСЂРёРµРјР° Рё РµРіРѕ СЂР°Р·РјРµСЂ.
 uint8_t* BvpPkg::getRxPkg(uint16_t &size) const {
   size = sizeof(pkgRx);
 
   return (uint8_t *) &pkgRx;
 }
 
-// Возвращает указатель на начало пакета для передачи и его размер.
+// Р’РѕР·РІСЂР°С‰Р°РµС‚ СѓРєР°Р·Р°С‚РµР»СЊ РЅР° РЅР°С‡Р°Р»Рѕ РїР°РєРµС‚Р° РґР»СЏ РїРµСЂРµРґР°С‡Рё Рё РµРіРѕ СЂР°Р·РјРµСЂ.
 uint8_t* BvpPkg::getTxPkg(uint16_t &size)  const {
   size = sizeof(pkgTx);
 
   return (uint8_t *) &pkgTx;
 }
 
-// Проверяет контрольную сумму пакета.
+// РџСЂРѕРІРµСЂСЏРµС‚ РєРѕРЅС‚СЂРѕР»СЊРЅСѓСЋ СЃСѓРјРјСѓ РїР°РєРµС‚Р°.
 bool BvpPkg::isChecksum(const pkg_t &pkg) const {
   return getChecksum(pkg) == pkg.checksum;
 }
 
-// Увеличивает счетчик последовательности.
+// РЈРІРµР»РёС‡РёРІР°РµС‚ СЃС‡РµС‚С‡РёРє РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕСЃС‚Рё.
 uint16_t BvpPkg::sequenceModify(uint16_t sequence) const {
   sequence = sequence + 1;
   if (sequence == 0) {
@@ -167,7 +167,7 @@ uint16_t BvpPkg::sequenceModify(uint16_t sequence) const {
   return sequence;
 }
 
-// Проверяет номер последовательности для принятого пакета.
+// РџСЂРѕРІРµСЂСЏРµС‚ РЅРѕРјРµСЂ РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕСЃС‚Рё РґР»СЏ РїСЂРёРЅСЏС‚РѕРіРѕ РїР°РєРµС‚Р°.
 bool BvpPkg::sequenceRxCheck(uint16_t sequence) const {
   bool check = false;
 
@@ -184,7 +184,7 @@ bool BvpPkg::sequenceRxCheck(uint16_t sequence) const {
   return check;
 }
 
-// Возвращает номер последовательности для передаваемого пакета.
+// Р’РѕР·РІСЂР°С‰Р°РµС‚ РЅРѕРјРµСЂ РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕСЃС‚Рё РґР»СЏ РїРµСЂРµРґР°РІР°РµРјРѕРіРѕ РїР°РєРµС‚Р°.
 uint16_t BvpPkg::sequenceTxGet() const {
   uint16_t sequence = 0;
 
@@ -201,12 +201,12 @@ uint16_t BvpPkg::sequenceTxGet() const {
   return sequence;
 }
 
-// Установка режима работы "Ведущий".
+// РЈСЃС‚Р°РЅРѕРІРєР° СЂРµР¶РёРјР° СЂР°Р±РѕС‚С‹ "Р’РµРґСѓС‰РёР№".
 void BvpPkg::setMaster() {
   mode = MODE_master;
 }
 
-// Установка режима работы "Ведомый".
+// РЈСЃС‚Р°РЅРѕРІРєР° СЂРµР¶РёРјР° СЂР°Р±РѕС‚С‹ "Р’РµРґРѕРјС‹Р№".
 void BvpPkg::setSlave() {
   mode = MODE_slave;
 }
