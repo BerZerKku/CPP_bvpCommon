@@ -17,10 +17,10 @@ const uint8_t BvpPkg::c_sop = 0xAB;   // Значение байта "Начал
 BvpPkg::BvpPkg() : mode(MODE_slave)
 {
   assert(c_sop == 0xAB);
-  assert(c_dataLen == 32);
+  assert(DATA_LEN == 32);
   assert(sizeof(pkgTx.sop) == 1);
   assert(sizeof(pkgTx.sequence) == 2);
-  assert(sizeof(pkgTx.data) == c_dataLen);
+  assert(sizeof(pkgTx.data) == DATA_LEN);
   assert(sizeof(pkgTx.checksum) == 1);
   assert(sizeof(pkg_t) == 36);
   assert(MODE_slave == mode);
@@ -31,9 +31,9 @@ BvpPkg::BvpPkg() : mode(MODE_slave)
 // Подготовка пакета для передачи.
 bool BvpPkg::addDataToPkg(uint8_t data[], uint16_t len){
   uint16_t i = 0;
-  bool state = (len <= c_dataLen);
+  bool state = (len <= DATA_LEN);
 
-  if (len <= c_dataLen) {
+  if (len <= DATA_LEN) {
     pkgTx.sop = c_sop;
 
     pkgTx.sequence = sequenceTxGet();
@@ -43,7 +43,7 @@ bool BvpPkg::addDataToPkg(uint8_t data[], uint16_t len){
       i++;
     }
 
-    while(i < c_dataLen) {
+    while(i < DATA_LEN) {
       pkgTx.data[i] = 0;
       i++;
     }
@@ -126,8 +126,8 @@ bool BvpPkg::getDataFromPkg(uint8_t data[], uint16_t &len) const {
   uint16_t i = 0;
   bool state = false;
 
-  if (checkRx() && (len < c_dataLen)) {
-    while((i < len) && (i < c_dataLen)) {
+  if (checkRx() && (len < DATA_LEN)) {
+    while((i < len) && (i < DATA_LEN)) {
       data[i] = pkgRx.data[i];
       i++;
     }
