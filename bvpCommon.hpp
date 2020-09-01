@@ -51,15 +51,15 @@ class BvpPkg {
     uint8_t   checksum = 0;           ///< Контрольная сумма.
   };
 
+public:
   /// Режим работы интерфейса I2C
   enum mode_t {
     MODE_slave = 0, ///< Ведомый.
     MODE_master     ///< Ведущий.
   };
 
-public:
   /// Конструктор
-  BvpPkg();
+  explicit BvpPkg(mode_t mode);
 
   /** Подготовка пакета для передачи.
    *
@@ -96,16 +96,10 @@ public:
    */
   uint8_t* getTxPkg(uint16_t &size) const;
 
-  /// Установка режима работы "Ведущий".
-  void setMaster();
-
-  /// Установка режима работы "Ведомый".
-  void setSlave();
-
 private:
-  mode_t mode;  ///< Режим работы интерфейса.
-  pkg_t pkgRx;  ///< Пакет для приема.
-  pkg_t pkgTx;  ///< Пакет для передачи.
+  const mode_t mode;  ///< Режим работы интерфейса.
+  pkg_t pkgRx;        ///< Пакет для приема.
+  pkg_t pkgTx;        ///< Пакет для передачи.
 
   /** Вычисляет 8-битную контрольную сумму для массива 8-битных данных.
    *

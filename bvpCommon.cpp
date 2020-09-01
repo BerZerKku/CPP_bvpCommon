@@ -14,16 +14,15 @@ namespace BVP {
 const uint8_t BvpPkg::c_sop = 0xAB;   // Значение байта "Начало пакета".
 
 // Конструктор.
-BvpPkg::BvpPkg() : mode(MODE_slave)
+BvpPkg::BvpPkg(mode_t mode) : mode(mode)
 {
-  assert(c_sop == 0xAB);
-  assert(DATA_LEN == 32);
-  assert(sizeof(pkgTx.sop) == 1);
-  assert(sizeof(pkgTx.sequence) == 2);
-  assert(sizeof(pkgTx.data) == DATA_LEN);
-  assert(sizeof(pkgTx.checksum) == 1);
-  assert(sizeof(pkg_t) == 36);
-  assert(MODE_slave == mode);
+  static_assert(c_sop == 0xAB, "Error value of c_sop constant\n");
+  static_assert(DATA_LEN == 32, "Wrong value of DATA_LEN constant\n");
+  static_assert(sizeof(pkgTx.sop) == 1, "Wrong size of c_sop constant\n");
+  static_assert(sizeof(pkg_t::sequence) == 2, "Wrong size of pkg_t::sequence\n");
+  static_assert(sizeof(pkg_t::data) == DATA_LEN, "Wrong size of pkg_t::data\n");
+  static_assert(sizeof(pkg_t::checksum) == 1, "Wrong size of pkg_t::checksum\n");
+  static_assert(sizeof(pkg_t) == 36, "Wrong size of pkg_t");
 
   pkgRx.sequence = pkgTx.sequence - 1;
 }
@@ -199,16 +198,6 @@ uint16_t BvpPkg::sequenceTxGet() const {
   }
 
   return sequence;
-}
-
-// Установка режима работы "Ведущий".
-void BvpPkg::setMaster() {
-  mode = MODE_master;
-}
-
-// Установка режима работы "Ведомый".
-void BvpPkg::setSlave() {
-  mode = MODE_slave;
 }
 
 } /* namespace BVP */
