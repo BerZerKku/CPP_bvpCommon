@@ -2,31 +2,10 @@
 #define MODBUS_H
 
 #include <cstdint>
+#include <cstddef>
+#include "serialprotocol.h"
 
-//namespace BVP {
-
-class TSerialProtocol {
-
-public:
-    TSerialProtocol(uint8_t * const buf) : mBuf(buf) {}
-    virtual ~TSerialProtocol();
-
-    virtual bool setEnable(bool enable) = 0;
-    virtual bool isRead() = 0;
-    virtual bool isWrite() = 0;
-    virtual bool pop(uint8_t &byte) = 0;
-    virtual bool push(uint8_t byte) = 0;
-    virtual bool setupTick(uint16_t ticktime = 0);
-    virtual uint16_t setup(uint16_t baudrate, bool parity, uint8_t stopbits) = 0;
-    virtual void tick() = 0;
-
-private:
-    uint8_t * const mBuf = nullptr;
-};
-
-TSerialProtocol::~TSerialProtocol() {
-
-}
+namespace BVP {
 
 class TModbus : public TSerialProtocol {
 
@@ -39,8 +18,9 @@ public:
     ~TModbus() override;
 
     bool setEnable(bool enable) override;
-    bool isRead() override;
-    bool isWrite() override;
+    bool isConnection() const override;
+    bool isRead() const override;
+    bool isWrite() const override;
     bool pop(uint8_t &byte) override;
     bool push(uint8_t byte) override;
     uint16_t setup(uint16_t baudrate, bool parity, uint8_t stopbits) override;
@@ -56,6 +36,6 @@ private:
     uint16_t ticksToError;
 };
 
-//} // namespace BVP
+} // namespace BVP
 
 #endif // MODBUS_H
