@@ -1,4 +1,4 @@
-#ifndef MODBUS_H
+﻿#ifndef MODBUS_H
 #define MODBUS_H
 
 #include <cstdint>
@@ -19,6 +19,35 @@ class TModbus : public TSerialProtocol {
         STATE_errorReply,
         //
         STATE_MAX
+    };
+
+    enum regRead_t {
+        REG_READ_MIN = 1,
+        //
+        REG_READ_sanSbSac = REG_READ_MIN,
+        REG_READ_sa16to01,
+        REG_READ_sa32to17,
+        REG_READ_sa48to33,
+        REG_READ_sa64to49,
+        //
+        REG_READ_MAX
+    };
+
+    enum regWrite_t {
+        REG_WRITE_MIN = 0x0B,
+        //
+        REG_WRITE_enSanSbSac = REG_WRITE_MIN,
+        REG_WRITE_enVv16to01,
+        REG_WRITE_enVv32to17,
+        REG_WRITE_enVv48to33,
+        REG_WRITE_enVv64to49,
+        REG_WRITE_dsSanSbSac,
+        REG_WRITE_dsVv16to01,
+        REG_WRITE_dsVv32to17,
+        REG_WRITE_dsVv48to33,
+        REG_WRITE_dsVv64to49,
+        //
+        REG_WRITE_MAX
     };
 
     /// Список команд протокола.
@@ -55,6 +84,8 @@ public:
     void tick() override;
     bool isConnection() const override;
 
+    static uint16_t calcCRC(const uint8_t buf[], size_t len, uint16_t crc=0xFFFF);
+
 private:
     /// Адрес опрашиваемого устройства.
     uint8_t mNetAddress;
@@ -75,6 +106,39 @@ private:
 
     /// Увеличивает счетчик ошибок без ответа.
     void incLostMessageCounter();
+
+
+    /** Добавляет в сообщение запрос для считывания регистров.
+     *
+     *  Адрес регистра в сообщении на единицу меньше номера.
+     *
+     *  @param[out] buf Начальная позиция в буфере сообщения.
+     *  @param minnum Номер младшего регистра.
+     *  @param maxnum Номер старшего регистра.
+     *  @return количество заполненных байт в сообщении.
+     */
+    uint16_t addReadRegMsg(uint8_t buf[], uint16_t minnum, uint16_t maxnum);
+
+    /** Добавляет в сообщение данные для записи регистров.
+     *
+     *  Адрес регистра в сообщении на единицу меньше номера.
+     *
+     *  @param[out] buf Начальная позиция в буфере сообщения.
+     *  @param[in] minnum Номер младшего регистра.
+     *  @param[in] maxnum Номер старшего регистра.
+     *  @param[out] ok true если номера регистров найдены, иначе false.
+     *  @return количество заполненных байт в сообщении.
+     */
+    uint16_t addWriteRegMsg(uint8_t buf[], uint16_t minnum,
+                            uint16_t maxnum, bool &ok);
+
+    /** Возвращает значение для указанного номера регистра.
+     *
+     *  @param[in] number Номер регистра.
+     *  @param[out] ok true если номер регистра найден, иначе false.
+     *  @return Значенеи регистра.
+     */
+    uint16_t getWriteRegMsgData(uint16_t number, bool &ok) const;
 };
 
 } // namespace BVP

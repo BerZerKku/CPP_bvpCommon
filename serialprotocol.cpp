@@ -4,6 +4,7 @@ namespace BVP {
 
 //
 TSerialProtocol::TSerialProtocol() :
+    mParam(nullptr),
     mBuf(nullptr),
     mSize(0),
     mPos(0),
@@ -14,7 +15,12 @@ TSerialProtocol::TSerialProtocol() :
 
 //
 TSerialProtocol::~TSerialProtocol() {
-    qDebug() << "~TSerialProtocol()";
+}
+
+//
+void
+TSerialProtocol::setParam(TParam &param) {
+    *(const_cast<TParam**> (&mParam)) = &param;
 }
 
 //

@@ -2,13 +2,8 @@
 
 namespace BVP {
 
-/*
- * CRC lookup table for bytes, generating polynomial is 0x8005
- * input: reflexed (LSB first)
- * output: reflexed also...
- */
-
-const uint16_t crc_ibm_table[256] = {
+/// Таблица CRC для полинома 0x8005 (LSB first)
+static const uint16_t crc_ibm_table[256] = {
     0x0000, 0xc0c1, 0xc181, 0x0140, 0xc301, 0x03c0, 0x0280, 0xc241,
     0xc601, 0x06c0, 0x0780, 0xc741, 0x0500, 0xc5c1, 0xc481, 0x0440,
     0xcc01, 0x0cc0, 0x0d80, 0xcd41, 0x0f00, 0xcfc1, 0xce81, 0x0e40,
@@ -43,22 +38,31 @@ const uint16_t crc_ibm_table[256] = {
     0x8201, 0x42c0, 0x4380, 0x8341, 0x4100, 0x81c1, 0x8081, 0x4040,
 };
 
-static inline uint16_t crc_ibm_byte(uint16_t crc, const uint8_t c) {
-    const unsigned char lut = (crc ^ c) & 0xFF;
+/** Вычисляет CRC для одного байта.
+ *
+ *  @param[in] crc Текущее значение CRC.
+ *  @param[in] c Байт данных.
+ *  @return
+ */
+static inline uint16_t
+crc_ibm_byte(uint16_t crc, const uint8_t byte) {
+    const unsigned char lut = (crc ^ byte) & 0xFF;
+
     return (crc >> 8) ^ crc_ibm_table[lut];
 }
 
-
-
-/**
- * crc_ibm - recompute the CRC for the data buffer
- * @crc - previous CRC value
- * @buffer - data pointer
- * @len - number of bytes in the buffer
+/** Вычисляет CRC для массива данных.
+ *
+ *  @param[in] buffer Массив данных.
+ *  @param[in] len Количество данных в массиве.
+ *  @param[in] crc Текущее значение CRC.
+ *  @return Значение CRC.
  */
-uint16_t crc_ibm(uint16_t crc, uint8_t const *buffer, size_t len) {
-    while (len--)
-        crc = crc_ibm_byte(crc, *buffer++);
+uint16_t TModbus::calcCRC(const uint8_t buf[], size_t len, uint16_t crc) {
+    for(size_t i = 0; i < len; i++) {
+        crc = crc_ibm_byte(crc, buf[i]);
+    }
+
     return crc;
 }
 
@@ -84,7 +88,11 @@ TModbus::~TModbus() {
 //
 bool
 TModbus::setEnable(bool enable) {
-    if (enable && (mBuf != nullptr) && (mSize > 0)) {
+    assert(mParam != nullptr);
+    assert(mBuf != nullptr);
+    assert(mSize != 0);
+
+    if (enable) {
         mState = STATE_idle;
         mLen = 0;
         mTimeUs = 0;
@@ -103,7 +111,6 @@ TModbus::read() {
     bool isread = false;
 
     if (mState == STATE_procReply) {
-
         isread = true;
         mState = STATE_idle;
     }
@@ -114,30 +121,30 @@ TModbus::read() {
 //
 bool
 TModbus::write() {
-    uint8_t pos = 0;
+    bool ok;
+    uint16_t len = 0;
 
     if (mState == STATE_idle) {
-        mBuf[pos++] = mNetAddress;
-        mBuf[pos++] = COM_readHoldingRegs;
-        mBuf[pos++] = 0x00;
-        mBuf[pos++] = 0x00;
-        mBuf[pos++] = 0x00;
-        mBuf[pos++] = 0x05;
+        mBuf[len++] = mNetAddress;
+        mBuf[len++] = COM_readWriteRegs;
+        len += addReadRegMsg(&mBuf[len], REG_READ_MIN, REG_READ_MAX-1);
+        len += addWriteRegMsg(&mBuf[len], REG_WRITE_MIN, REG_WRITE_MAX-1, ok);
 
-        uint16_t crc =  crc_ibm(0xFFFF, mBuf, pos);
-        qDebug() << "CRC = " << showbase << hex << crc;
+        if (ok) {
+            uint16_t crc =  calcCRC(mBuf, len);
+            mBuf[len++] = static_cast<uint8_t> (crc);
+            mBuf[len++] = static_cast<uint8_t> (crc >> 8);
 
-        mBuf[pos++] = 0x84;
-        mBuf[pos++] = 0xB2;
+            assert(len < 255);
 
-
-
-        if (pos > 0) {
-            mLen = pos;
-            mPos = 0;
-            mTimeUs = 0;
-            mState = STATE_reqSend;
+            if (len > 0) {
+                mLen = len;
+                mPos = 0;
+                mTimeUs = 0;
+                mState = STATE_reqSend;
+            }
         }
+
     }
 
     return mState == STATE_reqSend;
@@ -261,6 +268,90 @@ TModbus::incLostMessageCounter() {
     if (cntLostMessage < kMaxLostMessage) {
         cntLostMessage++;
     }
+}
+
+//
+uint16_t
+TModbus::addReadRegMsg(uint8_t buf[], uint16_t minadr, uint16_t maxadr) {
+    uint16_t len = 0;
+
+    assert(minadr > 0);
+    minadr--;
+    buf[len++] = static_cast<uint8_t> (minadr >> 8);
+    buf[len++] = static_cast<uint8_t> (minadr);
+
+    assert(maxadr >= minadr);
+    uint8_t quantity = static_cast<uint8_t> (maxadr - minadr + 1);
+    buf[len++] = static_cast<uint8_t> (quantity >> 8);
+    buf[len++] = static_cast<uint8_t> (quantity);
+
+    return len;
+}
+
+//
+uint16_t
+TModbus::addWriteRegMsg(uint8_t buf[], uint16_t minnum, uint16_t maxnum, bool &ok) {
+    uint16_t len = 0;
+
+    assert(minnum > 0);
+    uint16_t startaddress = minnum - 1;
+    buf[len++] = static_cast<uint8_t> (startaddress >> 8);
+    buf[len++] = static_cast<uint8_t> (startaddress);
+
+    assert(maxnum >= minnum);
+    uint8_t quantity = static_cast<uint8_t> (maxnum - minnum + 1);
+    buf[len++] = static_cast<uint8_t> (quantity >> 8);
+    buf[len++] = static_cast<uint8_t> (quantity);
+    buf[len++] = static_cast<uint8_t> (quantity*2);
+
+    for(uint8_t i = 0; i < quantity; i++) {
+        bool ok;
+        uint16_t value = getWriteRegMsgData(minnum + i, ok);
+        if (!ok) {
+            break;
+        }
+        buf[len++] = static_cast<uint8_t> (value >> 8);
+        buf[len++] = static_cast<uint8_t> (value);
+    }
+
+    return len;
+}
+
+//
+uint16_t
+TModbus::getWriteRegMsgData(uint16_t number, bool &ok) const {
+    uint16_t value = 0;
+
+    if ((number < REG_WRITE_MIN) && (number >= REG_WRITE_MAX)) {
+        ok = false;
+    } else {
+        switch(static_cast<regWrite_t> (number)) {
+            case REG_WRITE_enSanSbSac: {
+            } break;
+            case REG_WRITE_enVv16to01: {
+            } break;
+            case REG_WRITE_enVv32to17: {
+            } break;
+            case REG_WRITE_enVv48to33: {
+            } break;
+            case REG_WRITE_enVv64to49: {
+            } break;
+            case REG_WRITE_dsSanSbSac: {
+            } break;
+            case REG_WRITE_dsVv16to01: {
+            } break;
+            case REG_WRITE_dsVv32to17: {
+            } break;
+            case REG_WRITE_dsVv48to33: {
+            } break;
+            case REG_WRITE_dsVv64to49: {
+            } break;
+            case REG_WRITE_MAX: break;
+        }
+        ok = true;
+    }
+
+    return value;
 }
 
 

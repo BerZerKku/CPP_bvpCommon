@@ -2,6 +2,8 @@
 #define TSERIALPROTOCOL_H
 
 #include <cstdint>
+#include "param.h"
+
 #include <QDebug>
 
 namespace BVP {
@@ -53,6 +55,12 @@ public:
      */
     virtual bool setNetAddress(uint16_t address) = 0;
 
+    /** Устанавливает параметры.
+     *
+     *  @param[in] param
+     */
+    void setParam(TParam &param);
+
     /** Устанавливает период вызова функции tick.
      *
      *  @param[in] ticktime Период вызова функции tick, мкс.
@@ -86,6 +94,7 @@ public:
     virtual bool isConnection() const = 0;
 
 protected:
+    TParam * const mParam;  /// Параметры.
     uint8_t * const mBuf;   /// Буфер данных.
     const uint16_t mSize;   /// Размер буфера данных.
     uint16_t mPos;          /// Текущая позиция в буфере.
