@@ -63,7 +63,16 @@ uint16_t crc_ibm(uint16_t crc, uint8_t const *buffer, size_t len) {
 }
 
 //
-TModbus::TModbus(uint8_t * const buf) : TSerialProtocol(buf) {
+TModbus::TModbus() :
+    mNetAddress(255),
+    mState(STATE_disable),
+    mTimeUs(0),
+    mTimeTickUs(0),
+    mTimeOneByteUs(0),
+    mTimeToCompleteUs(0),
+    mTimeToErrorUs(0),
+    cntLostMessage(kMaxLostMessage)
+{
 
 }
 
@@ -75,57 +84,183 @@ TModbus::~TModbus() {
 //
 bool
 TModbus::setEnable(bool enable) {
+    if (enable && (mBuf != nullptr) && (mSize > 0)) {
+        mState = STATE_idle;
+        mLen = 0;
+        mTimeUs = 0;
+        cntLostMessage = kMaxLostMessage;
+        mState = STATE_idle;
+    } else {
+        mState = STATE_disable;
+    }
 
+    return mState != STATE_disable;
 }
 
 //
 bool
-TModbus::isConnection() const {
+TModbus::read() {
+    bool isread = false;
 
+    if (mState == STATE_procReply) {
+
+        isread = true;
+        mState = STATE_idle;
+    }
+
+    return isread;
 }
 
 //
 bool
-TModbus::isRead() const {
+TModbus::write() {
+    uint8_t pos = 0;
 
+    if (mState == STATE_idle) {
+        mBuf[pos++] = mNetAddress;
+        mBuf[pos++] = COM_readHoldingRegs;
+        mBuf[pos++] = 0x00;
+        mBuf[pos++] = 0x00;
+        mBuf[pos++] = 0x00;
+        mBuf[pos++] = 0x05;
+
+        uint16_t crc =  crc_ibm(0xFFFF, mBuf, pos);
+        qDebug() << "CRC = " << showbase << hex << crc;
+
+        mBuf[pos++] = 0x84;
+        mBuf[pos++] = 0xB2;
+
+
+
+        if (pos > 0) {
+            mLen = pos;
+            mPos = 0;
+            mTimeUs = 0;
+            mState = STATE_reqSend;
+        }
+    }
+
+    return mState == STATE_reqSend;
 }
 
+//
 bool
-TModbus::isWrite() const {
+TModbus::pop(uint8_t &byte) {
+    uint16_t pos = mPos;
 
+    if (mState == STATE_reqSend) {
+        if (mPos < mLen) {
+            byte = mBuf[mPos++];
+        } else {
+            mState = STATE_waitForReply;
+            mPos = 0;
+            mLen = 0;
+            mTimeUs = 0;
+        }
+    }
+
+    return mPos > pos;
 }
 
 //
 bool
 TModbus::push(uint8_t byte) {
+    uint16_t len = mLen;
 
+    if (mState == STATE_waitForReply) {
+        if ((len < mSize) && (mTimeUs < mTimeToErrorUs)) {
+            mBuf[mLen++] = byte;
+            mTimeUs = 0;
+        } else {
+            mState = STATE_errorReply;
+        }
+    }
+
+    if (mState == STATE_errorReply) {
+        mTimeUs = 0;
+    }
+
+    return mLen > len;
 }
 
 //
-uint16_t
-TModbus::setup(uint16_t baudrate, bool parity, uint8_t stopbits) {
-    uint8_t nbites = 8 + stopbits + (parity ? 1 : 0);
-    oneByteTimeUs = static_cast<uint16_t> ((1000000UL / baudrate) * nbites);
-
-    return oneByteTimeUs;
-}
-
-//
-bool TModbus::setupTick(uint16_t ticktimeus) {
-    ticksToError = (oneByteTimeUs * 3) / (ticktimeus * 2);
-    ticksToComplete = (oneByteTimeUs * 5) / (ticktimeus * 2);
-
-    return (ticksToError > 0) && (ticksToComplete > 0);
-}
-
 bool
-TModbus::pop(uint8_t &byte) {
+TModbus::setNetAddress(uint16_t address) {
+    if ((address > 0) && (address <= 247)) {
+        mNetAddress = static_cast<uint8_t> (address);
+    }
 
+    return mNetAddress == address;
 }
 
+//
+bool
+TModbus::setup(uint32_t baudrate, bool parity, uint8_t stopbits) {
+    uint8_t nbites = 1 + 8 + stopbits + (parity ? 1 : 0);
+
+    // TODO Проверить времена в железе. На ПК от них толка нет.
+
+    mTimeOneByteUs = static_cast<uint32_t> ((1000000UL / baudrate) * nbites);
+    mTimeToCompleteUs = (mTimeOneByteUs * 7) / 2;   // 3.5 char
+    mTimeToErrorUs = (mTimeOneByteUs * 3) / 2;      // 1.5 char
+
+#if defined(QT_CORE_LIB)
+    // На ПК таймауты не выдерживаются. Просто так не задать меньше 1 мс.
+    mTimeToCompleteUs *= 10;
+    mTimeToErrorUs *= 10;
+#endif
+
+    return mTimeOneByteUs;
+}
+
+//
+bool TModbus::setTimeTick(uint32_t ticktimeus) {
+    mTimeTickUs = ticktimeus;
+
+    return mTimeTickUs != 0;
+}
+
+//
 void
 TModbus::tick() {
+    if (mState == STATE_disable) {
+        return;
+    }
 
+    mTimeUs += mTimeTickUs;
+
+    if (mState == STATE_waitForReply) {
+        if (mLen == 0) {
+            if (mTimeUs >  kMaxTimeToResponseUs) {
+                mState = STATE_idle;
+            }
+        } else {
+            if (mTimeUs > mTimeToCompleteUs) {
+                mState = STATE_procReply;
+                cntLostMessage = 0;
+            }
+        }
+    }
+
+    if (mState == STATE_errorReply) {
+        if (mTimeUs > mTimeToCompleteUs) {
+            mState = STATE_idle;
+        }
+    }
+}
+
+//
+bool
+TModbus::isConnection() const {
+    return cntLostMessage < kMaxLostMessage;
+}
+
+//
+void
+TModbus::incLostMessageCounter() {
+    if (cntLostMessage < kMaxLostMessage) {
+        cntLostMessage++;
+    }
 }
 
 
