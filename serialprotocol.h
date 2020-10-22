@@ -55,12 +55,6 @@ public:
      */
     virtual bool setNetAddress(uint16_t address) = 0;
 
-    /** Устанавливает параметры.
-     *
-     *  @param[in] param
-     */
-    void setParam(TParam &param);
-
     /** Устанавливает период вызова функции tick.
      *
      *  @param[in] ticktime Период вызова функции tick, мкс.

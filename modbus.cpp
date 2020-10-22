@@ -75,9 +75,7 @@ TModbus::TModbus() :
     mTimeOneByteUs(0),
     mTimeToCompleteUs(0),
     mTimeToErrorUs(0),
-    cntLostMessage(kMaxLostMessage)
-{
-
+    cntLostMessage(kMaxLostMessage) {
 }
 
 //
@@ -88,9 +86,9 @@ TModbus::~TModbus() {
 //
 bool
 TModbus::setEnable(bool enable) {
-    assert(mParam != nullptr);
-    assert(mBuf != nullptr);
-    assert(mSize != 0);
+    Q_ASSERT(mParam != nullptr);
+    Q_ASSERT(mBuf != nullptr);
+    Q_ASSERT(mSize != 0);
 
     if (enable) {
         mState = STATE_idle;
@@ -111,7 +109,27 @@ TModbus::read() {
     bool isread = false;
 
     if (mState == STATE_procReply) {
-        isread = true;
+        bool ok = true;
+        uint16_t len = mLen;
+        uint16_t position = 0;
+
+        position += checkReadMsg(&mBuf[position], len, ok);
+
+        switch(static_cast<com_t> (mBuf[position++])) {
+            case COM_readHoldingRegs: {
+                position += getReadReg(&mBuf[position], len,
+                                          REG_READ_MIN, REG_READ_MAX-1, ok);
+            } break;
+            case COM_writeMultRegs : {
+                // TODO добавить проверку сообщения.
+            } break;
+            case COM_readWriteRegs: {
+                position += getReadReg(&mBuf[position], len,
+                                          REG_READ_MIN, REG_READ_MAX-1, ok);
+            } break;
+        }
+
+        isread = ok;
         mState = STATE_idle;
     }
 
@@ -121,21 +139,37 @@ TModbus::read() {
 //
 bool
 TModbus::write() {
-    bool ok;
-    uint16_t len = 0;
-
     if (mState == STATE_idle) {
+        bool ok = true;
+        uint16_t len = 0;
+        com_t com = COM_readWriteRegs;
+
         mBuf[len++] = mNetAddress;
-        mBuf[len++] = COM_readWriteRegs;
-        len += addReadRegMsg(&mBuf[len], REG_READ_MIN, REG_READ_MAX-1);
-        len += addWriteRegMsg(&mBuf[len], REG_WRITE_MIN, REG_WRITE_MAX-1, ok);
+        mBuf[len++] = com;
+
+        switch(com) {
+            case COM_readHoldingRegs: {
+                len += addReadRegMsg(&mBuf[len],
+                                     REG_READ_MIN, REG_READ_MAX-1, ok);
+            } break;
+            case COM_writeMultRegs : {
+                len += addReadRegMsg(&mBuf[len],
+                                     REG_READ_MIN, REG_READ_MAX-1, ok);
+            } break;
+            case COM_readWriteRegs: {
+                len += addReadRegMsg(&mBuf[len],
+                                     REG_READ_MIN, REG_READ_MAX-1, ok);
+                len += addWriteRegMsg(&mBuf[len],
+                                      REG_WRITE_MIN, REG_WRITE_MAX-1, ok);
+            } break;
+        }
 
         if (ok) {
             uint16_t crc =  calcCRC(mBuf, len);
             mBuf[len++] = static_cast<uint8_t> (crc);
             mBuf[len++] = static_cast<uint8_t> (crc >> 8);
 
-            assert(len < 255);
+            Q_ASSERT(len < kMaxSizeFrameRtu);
 
             if (len > 0) {
                 mLen = len;
@@ -174,8 +208,8 @@ bool
 TModbus::push(uint8_t byte) {
     uint16_t len = mLen;
 
-    if (mState == STATE_waitForReply) {
-        if ((len < mSize) && (mTimeUs < mTimeToErrorUs)) {
+    if (mState == STATE_waitForReply) {        
+        if ((len == 0) || ((len < mSize) && (mTimeUs < mTimeToErrorUs))) {
             mBuf[mLen++] = byte;
             mTimeUs = 0;
         } else {
@@ -234,7 +268,9 @@ TModbus::tick() {
         return;
     }
 
-    mTimeUs += mTimeTickUs;
+    if (mTimeUs < kMaxTimeToResponseUs) {
+        mTimeUs += mTimeTickUs;
+    }
 
     if (mState == STATE_waitForReply) {
         if (mLen == 0) {
@@ -272,86 +308,173 @@ TModbus::incLostMessageCounter() {
 
 //
 uint16_t
-TModbus::addReadRegMsg(uint8_t buf[], uint16_t minadr, uint16_t maxadr) {
-    uint16_t len = 0;
+TModbus::addReadRegMsg(uint8_t buf[], uint16_t min, uint16_t max, bool &ok) {
+    uint16_t nbytes = 0;
 
-    assert(minadr > 0);
-    minadr--;
-    buf[len++] = static_cast<uint8_t> (minadr >> 8);
-    buf[len++] = static_cast<uint8_t> (minadr);
+    Q_ASSERT(min >= REG_READ_MIN);
+    Q_ASSERT(max < REG_READ_MAX);
+    Q_ASSERT(ok);
 
-    assert(maxadr >= minadr);
-    uint8_t quantity = static_cast<uint8_t> (maxadr - minadr + 1);
-    buf[len++] = static_cast<uint8_t> (quantity >> 8);
-    buf[len++] = static_cast<uint8_t> (quantity);
+    if (ok) {
+        Q_ASSERT(min > 0);
+        uint16_t startaddress = min - 1;
+        buf[nbytes++] = static_cast<uint8_t> (startaddress >> 8);
+        buf[nbytes++] = static_cast<uint8_t> (startaddress);
 
-    return len;
+        Q_ASSERT(max >= min);
+        uint8_t quantity = static_cast<uint8_t> (max - min + 1);
+        buf[nbytes++] = static_cast<uint8_t> (quantity >> 8);
+        buf[nbytes++] = static_cast<uint8_t> (quantity);
+    }
+
+    return nbytes;
 }
 
 //
 uint16_t
-TModbus::addWriteRegMsg(uint8_t buf[], uint16_t minnum, uint16_t maxnum, bool &ok) {
-    uint16_t len = 0;
+TModbus::addWriteRegMsg(uint8_t buf[], uint16_t min, uint16_t max, bool &ok) {
+    uint16_t nbytes = 0;
 
-    assert(minnum > 0);
-    uint16_t startaddress = minnum - 1;
-    buf[len++] = static_cast<uint8_t> (startaddress >> 8);
-    buf[len++] = static_cast<uint8_t> (startaddress);
+    Q_ASSERT(min >= REG_WRITE_MIN);
+    Q_ASSERT(max < REG_WRITE_MAX);
+    Q_ASSERT(ok);
 
-    assert(maxnum >= minnum);
-    uint8_t quantity = static_cast<uint8_t> (maxnum - minnum + 1);
-    buf[len++] = static_cast<uint8_t> (quantity >> 8);
-    buf[len++] = static_cast<uint8_t> (quantity);
-    buf[len++] = static_cast<uint8_t> (quantity*2);
+    if (ok) {
+        if ((min < REG_WRITE_MIN) || (max >= REG_WRITE_MAX)) {
+            ok = false;
+        } else {
+            uint16_t startaddress = min - 1;
+            buf[nbytes++] = static_cast<uint8_t> (startaddress >> 8);
+            buf[nbytes++] = static_cast<uint8_t> (startaddress);
 
-    for(uint8_t i = 0; i < quantity; i++) {
-        bool ok;
-        uint16_t value = getWriteRegMsgData(minnum + i, ok);
-        if (!ok) {
-            break;
+            uint8_t quantity = static_cast<uint8_t> (max - min + 1);
+            buf[nbytes++] = static_cast<uint8_t> (quantity >> 8);
+            buf[nbytes++] = static_cast<uint8_t> (quantity);
+            buf[nbytes++] = static_cast<uint8_t> (quantity*2);
+
+            for(uint8_t i = 0; i < quantity; i++) {
+                uint16_t value = getWriteRegMsgData(min + i, ok);
+                if (!ok) {
+                    break;
+                }
+                buf[nbytes++] = static_cast<uint8_t> (value >> 8);
+                buf[nbytes++] = static_cast<uint8_t> (value);
+            }
         }
-        buf[len++] = static_cast<uint8_t> (value >> 8);
-        buf[len++] = static_cast<uint8_t> (value);
     }
 
-    return len;
+    return nbytes;
 }
 
 //
+uint16_t
+TModbus::checkReadMsg(const uint8_t buf[], uint16_t &len, bool &ok) {
+    uint16_t nbytes = 0;
+
+    if (ok) {
+        if (buf[nbytes++] != mNetAddress) {
+            ok = false;
+        }
+
+        uint16_t crcpkg = static_cast<uint16_t> (buf[--len] << 8);
+        crcpkg += buf[--len];
+
+        if (crcpkg != calcCRC(buf, len)) {
+            ok = false;
+        }
+    }
+
+    return nbytes;
+}
+
+
 uint16_t
 TModbus::getWriteRegMsgData(uint16_t number, bool &ok) const {
     uint16_t value = 0;
 
-    if ((number < REG_WRITE_MIN) && (number >= REG_WRITE_MAX)) {
-        ok = false;
-    } else {
-        switch(static_cast<regWrite_t> (number)) {
-            case REG_WRITE_enSanSbSac: {
-            } break;
-            case REG_WRITE_enVv16to01: {
-            } break;
-            case REG_WRITE_enVv32to17: {
-            } break;
-            case REG_WRITE_enVv48to33: {
-            } break;
-            case REG_WRITE_enVv64to49: {
-            } break;
-            case REG_WRITE_dsSanSbSac: {
-            } break;
-            case REG_WRITE_dsVv16to01: {
-            } break;
-            case REG_WRITE_dsVv32to17: {
-            } break;
-            case REG_WRITE_dsVv48to33: {
-            } break;
-            case REG_WRITE_dsVv64to49: {
-            } break;
-            case REG_WRITE_MAX: break;
+    Q_ASSERT(number >= REG_WRITE_MIN);
+    Q_ASSERT(number < REG_WRITE_MAX);
+    Q_ASSERT(ok);
+
+    if (ok) {
+        if ((number < REG_WRITE_MIN) || (number >= REG_WRITE_MAX)) {
+            ok = false;
+        } else {
+            param_t param = PARAM_MAX;
+
+            if ((number >= REG_WRITE_enSanSbSac) &&
+                (number <= REG_WRITE_dsVv64to49)) {
+                number -= REG_WRITE_enSanSbSac;
+                param = static_cast<param_t>(number + PARAM_vpEnSanSbSac);
+            }
+
+            ok = (param != PARAM_MAX);
+            if (ok) {
+                ok = mParam->isValueSet(param);
+                if (ok) {
+                    value = static_cast<uint16_t> (mParam->getValue(param));
+                }
+            }
+
         }
-        ok = true;
     }
 
     return value;
+}
+
+//
+uint16_t
+TModbus::getReadReg(const uint8_t buf[], uint16_t &len,
+                       uint16_t min, uint16_t max, bool &ok) {
+    uint16_t nbytes = 0;
+    uint8_t quantity = 0;
+
+    if (ok) {
+        quantity = static_cast<uint8_t> (max- min + 1);
+        if ((buf[nbytes++] != 2*quantity) || (len < 2*quantity)) {
+            ok = false;
+        }
+    }
+
+    if (ok) {
+        for(uint8_t i = 0; i < quantity; i++) {
+            nbytes += getReadReg(&buf[nbytes], min++, ok);
+            if (!ok) {
+                break;
+            }
+        }
+    }
+
+    len -= nbytes;
+    return nbytes;
+}
+
+//
+uint16_t
+TModbus::getReadReg(const uint8_t buf[], uint16_t number, bool &ok) {
+    uint16_t nbytes = 0;
+
+    if (ok) {
+        if ((number < REG_READ_MIN) || (number >= REG_READ_MAX)) {
+            ok = false;
+        } else {
+            uint16_t value = static_cast<uint16_t> (buf[nbytes++] << 8);
+            value += buf[nbytes++];
+
+            param_t param = PARAM_MAX;
+            if ((number >= REG_READ_sanSbSac) && (number <= REG_READ_sa64to49)) {
+                number -= REG_READ_sanSbSac;
+                param = static_cast<param_t>(number + PARAM_vpBtnSAnSbSac);
+            }
+
+            ok = (param != PARAM_MAX);
+            if (ok) {
+                mParam->setValue(param, value);
+            }
+        }
+    }
+
+    return nbytes;
 }
 
 

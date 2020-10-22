@@ -8,19 +8,14 @@ TSerialProtocol::TSerialProtocol() :
     mBuf(nullptr),
     mSize(0),
     mPos(0),
-    mLen(0)
-{
+    mLen(0) {
 
+    *(const_cast<TParam**> (&mParam)) = TParam::getInstance();
 }
 
 //
 TSerialProtocol::~TSerialProtocol() {
-}
 
-//
-void
-TSerialProtocol::setParam(TParam &param) {
-    *(const_cast<TParam**> (&mParam)) = &param;
 }
 
 //

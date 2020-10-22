@@ -53,14 +53,17 @@ class TModbus : public TSerialProtocol {
     /// Список команд протокола.
     enum com_t {
         COM_readHoldingRegs = 0x03, /// Команда чтения регистров.
+        COM_writeMultRegs = 0x10,   /// Команда записи регистров.
         COM_readWriteRegs = 0x17    /// Команда чтения/записи регистров.
     };
 
 
-    /// Максимальное время для получения ответа.
+    /// Максимальное время для получения ответа (в данной реализации).
     const uint32_t kMaxTimeToResponseUs = 200000UL;
     /// Максимальное количество сообщений без ответа до потери связи.
     const uint8_t kMaxLostMessage = 5;
+    /// Максимальная длинна RTU кадра
+    const uint16_t kMaxSizeFrameRtu = 256;
 
 public:
     TModbus();
@@ -107,38 +110,79 @@ private:
     /// Увеличивает счетчик ошибок без ответа.
     void incLostMessageCounter();
 
-
     /** Добавляет в сообщение запрос для считывания регистров.
      *
      *  Адрес регистра в сообщении на единицу меньше номера.
+     *  Если аргумент ok при вызове имеет значение false, то сразу на выход..
      *
      *  @param[out] buf Начальная позиция в буфере сообщения.
-     *  @param minnum Номер младшего регистра.
-     *  @param maxnum Номер старшего регистра.
+     *  @param min Номер младшего регистра.
+     *  @param max Номер старшего регистра.
+     *  @param[in/out] ok true если номера регистров найдены, иначе false.
      *  @return количество заполненных байт в сообщении.
      */
-    uint16_t addReadRegMsg(uint8_t buf[], uint16_t minnum, uint16_t maxnum);
+    uint16_t addReadRegMsg(uint8_t buf[], uint16_t min, uint16_t max, bool &ok);
 
     /** Добавляет в сообщение данные для записи регистров.
      *
      *  Адрес регистра в сообщении на единицу меньше номера.
+     *  Если аргумент ok при вызове имеет значение false, то сразу на выход.
      *
      *  @param[out] buf Начальная позиция в буфере сообщения.
-     *  @param[in] minnum Номер младшего регистра.
-     *  @param[in] maxnum Номер старшего регистра.
-     *  @param[out] ok true если номера регистров найдены, иначе false.
+     *  @param[in] min Номер младшего регистра.
+     *  @param[in] max Номер старшего регистра.
+     *  @param[in/out] ok true если номера регистров найдены, иначе false.
      *  @return количество заполненных байт в сообщении.
      */
-    uint16_t addWriteRegMsg(uint8_t buf[], uint16_t minnum,
-                            uint16_t maxnum, bool &ok);
+    uint16_t addWriteRegMsg(uint8_t buf[], uint16_t min, uint16_t max, bool &ok);
+
+    /** Проверяет принятое сообщение.
+     *
+     *  После проверки CRC количество необработанных байт в сообщении
+     *  уменьшается на 2.
+     *  Если аргумент ok при вызове имеет значение false, то сразу на выход.
+     *
+     *  @param[in] buf Начальная позиция в буфере сообщения.
+     *  @param[in/out] Количество необработанных байт в сообщении.
+     *  @param[in/out] ok true если проверка пройдена, иначе false.
+     *  @return количество обработанных байт в сообещнии.
+     */
+    uint16_t checkReadMsg(const uint8_t buf[], uint16_t &len, bool &ok);
 
     /** Возвращает значение для указанного номера регистра.
      *
+     *  Если аргумент ok при вызове имеет значение false, то сразу на выход.
+     *
      *  @param[in] number Номер регистра.
-     *  @param[out] ok true если номер регистра найден, иначе false.
+     *  @param[in/out] ok true если номер регистра найден, иначе false.
      *  @return Значенеи регистра.
      */
     uint16_t getWriteRegMsgData(uint16_t number, bool &ok) const;
+
+    /** Извлекает значения регистров из сообщения.
+     *
+     *  Если аргумент ok при вызове имеет значение false, то сразу на выход.
+     *
+     *  @param[in] buf Начальная позиция в буфере сообщения.
+     *  @param[in/out] Количество необработанных байт в сообщении.
+     *  @param[in] min Номер младшего регистра.
+     *  @param[in] max Номер старшего регистра.
+     *  @param[in/out] ok true если номера регистров найдены, иначе false.
+     *  @return количество обработанных байт в сообщении.
+     */
+    uint16_t getReadReg(const uint8_t buf[], uint16_t &len, uint16_t min,
+                           uint16_t max, bool &ok);
+
+    /** Извлекает значение для указанного номера регистра.
+     *
+     *  Если аргумент ok при вызове имеет значение false, то сразу на выход.
+     *
+     *  @param[in] buf Начальная позиция в буфере сообщения.
+     *  @param[in] number Номер регистра.
+     *  @param[in/out] ok true если данные для регистра обработаны, иначе false.
+     *  @return количество обработанных байт в сообщении.
+     */
+    uint16_t getReadReg(const uint8_t buf[], uint16_t number, bool &ok);
 };
 
 } // namespace BVP
