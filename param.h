@@ -9,21 +9,16 @@ namespace BVP {
 enum param_t {
     // Кнопки панели виртуальных ключей.
     PARAM_vpBtnSAnSbSac = 0,
-    PARAM_vpBtnSA16to01,
-    PARAM_vpBtnSA32to17,
-    PARAM_vpBtnSA38to33,
-    PARAM_vpBtnSA64to49,
-    // Состояния виртуальных ключей.
-    PARAM_vpEnSanSbSac,
-    PARAM_vpEnSa16to01,
-    PARAM_vpEnSa32to17,
-    PARAM_vpEnSa38to33,
-    PARAM_vpEnSa64to49,
-    PARAM_vpDsSanSbSac,
-    PARAM_vpDsSa16to01,
-    PARAM_vpDsSa32to17,
-    PARAM_vpDsSa38to33,
-    PARAM_vpDsSa64to49,
+    PARAM_vpBtnSA32to01,
+    PARAM_vpBtnSA64to33,
+    //
+    PARAM_dirControl,       ///< Управление ключами (SAC2).
+    PARAM_blkComPrmAll,     ///< Блокировка всех выходов приемника (SAC1).
+    PARAM_blkComPrmDir,     ///< Блокировка направляений выхода приемника (SAnn.x)
+    PARAM_blkComPrm32to01,  ///< Блокированные команды приемника с 1 по 32.
+    PARAM_blkComPrm64to33,  ///< Блокированные команды приемника с 33 по 64.
+    PARAM_blkComPrd32to01,  ///< Блокированные команды передатчика с 1 по 32.
+    PARAM_blkComPrd64to33,  ///< Блокированные команды передатчика с 33 по 64.
     //
     PARAM_MAX
 };

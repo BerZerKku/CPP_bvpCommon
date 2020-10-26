@@ -399,24 +399,60 @@ TModbus::getWriteRegMsgData(uint16_t number, bool &ok) const {
     if (ok) {
         if ((number < REG_WRITE_MIN) || (number >= REG_WRITE_MAX)) {
             ok = false;
-        } else {
-            param_t param = PARAM_MAX;
-
-            if ((number >= REG_WRITE_enSanSbSac) &&
-                (number <= REG_WRITE_dsVv64to49)) {
-                number -= REG_WRITE_enSanSbSac;
-                param = static_cast<param_t>(number + PARAM_vpEnSanSbSac);
-            }
-
-            ok = (param != PARAM_MAX);
-            if (ok) {
-                ok = mParam->isValueSet(param);
-                if (ok) {
-                    value = static_cast<uint16_t> (mParam->getValue(param));
-                }
-            }
-
         }
+    }
+
+    if (ok) {
+        param_t param = PARAM_MAX;
+
+        Q_ASSERT((number >= REG_WRITE_MIN) && (number < REG_WRITE_MAX));
+
+        switch (static_cast<regWrite_t> (number)) {
+            case REG_WRITE_enSanSbSac: {
+                param = PARAM_vpBtnSAnSbSac;
+                value = static_cast<uint16_t> (mParam->getValue(param));
+            } break;
+            case REG_WRITE_enLed16to01: {
+                param = PARAM_blkComPrd32to01;
+                value = static_cast<uint16_t> (~mParam->getValue(param));
+            } break;
+            case REG_WRITE_enLed32to17: {
+                param = PARAM_blkComPrd32to01;
+                value = static_cast<uint16_t> (~mParam->getValue(param) >> 16);
+            } break;
+            case REG_WRITE_enLed48to33: {
+                param = PARAM_blkComPrd64to33;
+                value = static_cast<uint16_t> (~mParam->getValue(param));
+            } break;
+            case REG_WRITE_enLed64to49: {
+                param = PARAM_blkComPrd64to33;
+                value = static_cast<uint16_t> (~mParam->getValue(param) >> 16);
+            } break;
+            case REG_WRITE_dsSanSbSac: {
+                param = PARAM_vpBtnSAnSbSac;
+                value = static_cast<uint16_t> (mParam->getValue(param) >> 16);
+            } break;
+            case REG_WRITE_dsLed16to01: {
+                param = PARAM_blkComPrd32to01;
+                value = static_cast<uint16_t> (mParam->getValue(param));
+            } break;
+            case REG_WRITE_dsLed32to17: {
+                param = PARAM_blkComPrd32to01;
+                value = static_cast<uint16_t> (mParam->getValue(param) >> 16);
+            } break;
+            case REG_WRITE_dsLed48to33: {
+                param = PARAM_blkComPrd64to33;
+                value = static_cast<uint16_t> (mParam->getValue(param));
+            } break;
+            case REG_WRITE_dsLed64to49: {
+                param = PARAM_blkComPrd64to33;
+                value = static_cast<uint16_t> (mParam->getValue(param) >> 16);
+            } break;
+            case REG_WRITE_MAX: break;
+        }
+
+        Q_ASSERT(param != PARAM_MAX);
+        ok = (param != PARAM_MAX);
     }
 
     return value;
@@ -457,20 +493,52 @@ TModbus::getReadReg(const uint8_t buf[], uint16_t number, bool &ok) {
     if (ok) {
         if ((number < REG_READ_MIN) || (number >= REG_READ_MAX)) {
             ok = false;
-        } else {
-            uint16_t value = static_cast<uint16_t> (buf[nbytes++] << 8);
-            value += buf[nbytes++];
+        }
+    }
 
-            param_t param = PARAM_MAX;
-            if ((number >= REG_READ_sanSbSac) && (number <= REG_READ_sa64to49)) {
-                number -= REG_READ_sanSbSac;
-                param = static_cast<param_t>(number + PARAM_vpBtnSAnSbSac);
-            }
+    if (ok) {
+        uint32_t val32 = 0;
+        uint16_t value = static_cast<uint16_t> (buf[nbytes++]);
+        value = static_cast<uint16_t> ((value << 8) + buf[nbytes++]);
 
-            ok = (param != PARAM_MAX);
-            if (ok) {
-                mParam->setValue(param, value);
-            }
+        Q_ASSERT((number >= REG_READ_MIN) && (number < REG_READ_MAX));
+
+        param_t param = PARAM_MAX;
+
+        switch(static_cast<regRead_t> (number)) {
+            case REG_READ_sanSbSac: {
+               param = PARAM_vpBtnSAnSbSac;
+               val32 = static_cast<uint32_t> (value);
+               val32 += (mParam->getValue(param) & 0xFFFF0000);
+            } break;
+            case REG_READ_sa16to01: {
+                param = PARAM_vpBtnSA32to01;
+                val32 = static_cast<uint32_t> (value);
+                val32 += (mParam->getValue(param) & 0xFFFF0000);
+            } break;
+            case REG_READ_sa32to17: {
+                param = PARAM_vpBtnSA32to01;
+                val32 = (static_cast<uint32_t> (value)) << 16;
+                val32 += (mParam->getValue(param) & 0x0000FFFF);
+            } break;
+            case REG_READ_sa48to33: {
+                param = PARAM_vpBtnSA64to33;
+                val32 = static_cast<uint32_t> (value);
+                val32 += (mParam->getValue(param) & 0xFFFF0000);
+            } break;
+            case REG_READ_sa64to49: {
+                param = PARAM_vpBtnSA64to33;
+                val32 = (static_cast<uint32_t> (value)) << 16;
+                val32 += (mParam->getValue(param) & 0x0000FFFF);
+            } break;
+            case REG_READ_MAX: break;
+        }
+
+        Q_ASSERT(param != PARAM_MAX);
+        ok = (param != PARAM_MAX);
+
+        if (ok) {
+            mParam->setValue(param, val32);
         }
     }
 

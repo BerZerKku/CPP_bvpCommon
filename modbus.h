@@ -37,15 +37,15 @@ class TModbus : public TSerialProtocol {
         REG_WRITE_MIN = 0x0B,
         //
         REG_WRITE_enSanSbSac = REG_WRITE_MIN,
-        REG_WRITE_enVv16to01,
-        REG_WRITE_enVv32to17,
-        REG_WRITE_enVv48to33,
-        REG_WRITE_enVv64to49,
+        REG_WRITE_enLed16to01,
+        REG_WRITE_enLed32to17,
+        REG_WRITE_enLed48to33,
+        REG_WRITE_enLed64to49,
         REG_WRITE_dsSanSbSac,
-        REG_WRITE_dsVv16to01,
-        REG_WRITE_dsVv32to17,
-        REG_WRITE_dsVv48to33,
-        REG_WRITE_dsVv64to49,
+        REG_WRITE_dsLed16to01,
+        REG_WRITE_dsLed32to17,
+        REG_WRITE_dsLed48to33,
+        REG_WRITE_dsLed64to49,
         //
         REG_WRITE_MAX
     };
