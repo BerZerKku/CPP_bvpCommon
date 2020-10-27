@@ -115,18 +115,25 @@ TModbus::read() {
 
         position += checkReadMsg(&mBuf[position], len, ok);
 
-        switch(static_cast<com_t> (mBuf[position++])) {
-            case COM_readHoldingRegs: {
-                position += getReadReg(&mBuf[position], len,
-                                          REG_READ_MIN, REG_READ_MAX-1, ok);
-            } break;
-            case COM_writeMultRegs : {
-                // TODO добавить проверку сообщения.
-            } break;
-            case COM_readWriteRegs: {
-                position += getReadReg(&mBuf[position], len,
-                                          REG_READ_MIN, REG_READ_MAX-1, ok);
-            } break;
+        if (ok) {
+            switch(static_cast<com_t> (mBuf[position++])) {
+                case COM_readHoldingRegs: {
+                    position += getReadReg(&mBuf[position], len,
+                                              REG_READ_MIN, REG_READ_MAX-1, ok);
+                } break;
+                case COM_writeMultRegs : {
+                    // TODO добавить проверку сообщения.
+                } break;
+                case COM_readWriteRegs: {
+                    position += getReadReg(&mBuf[position], len,
+                                              REG_READ_MIN, REG_READ_MAX-1, ok);
+                } break;
+            }
+            cntLostMessage = 0;
+        }
+
+        if (!ok) {
+            incLostMessageCounter();
         }
 
         isread = ok;
@@ -274,20 +281,21 @@ TModbus::tick() {
 
     if (mState == STATE_waitForReply) {
         if (mLen == 0) {
-            if (mTimeUs >  kMaxTimeToResponseUs) {
+            if (mTimeUs >=  kMaxTimeToResponseUs) {
                 mState = STATE_idle;
+                incLostMessageCounter();
             }
         } else {
             if (mTimeUs > mTimeToCompleteUs) {
                 mState = STATE_procReply;
-                cntLostMessage = 0;
             }
         }
     }
 
     if (mState == STATE_errorReply) {
-        if (mTimeUs > mTimeToCompleteUs) {
+        if (mTimeUs >= mTimeToCompleteUs) {
             mState = STATE_idle;
+            incLostMessageCounter();
         }
     }
 }
@@ -474,7 +482,7 @@ TModbus::getReadReg(const uint8_t buf[], uint16_t &len,
 
     if (ok) {
         for(uint8_t i = 0; i < quantity; i++) {
-            nbytes += getReadReg(&buf[nbytes], min++, ok);
+            nbytes += getReadRegMsgData(&buf[nbytes], min++, ok);
             if (!ok) {
                 break;
             }
@@ -487,7 +495,7 @@ TModbus::getReadReg(const uint8_t buf[], uint16_t &len,
 
 //
 uint16_t
-TModbus::getReadReg(const uint8_t buf[], uint16_t number, bool &ok) {
+TModbus::getReadRegMsgData(const uint8_t buf[], uint16_t number, bool &ok) {
     uint16_t nbytes = 0;
 
     if (ok) {

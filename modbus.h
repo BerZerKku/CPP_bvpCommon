@@ -182,7 +182,7 @@ private:
      *  @param[in/out] ok true если данные для регистра обработаны, иначе false.
      *  @return количество обработанных байт в сообщении.
      */
-    uint16_t getReadReg(const uint8_t buf[], uint16_t number, bool &ok);
+    uint16_t getReadRegMsgData(const uint8_t buf[], uint16_t number, bool &ok);
 };
 
 } // namespace BVP
