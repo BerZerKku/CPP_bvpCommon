@@ -7,21 +7,41 @@
 namespace BVP {
 
 enum param_t {
-    // Кнопки панели виртуальных ключей.
-    PARAM_vpBtnSAnSbSac = 0,
-    PARAM_vpBtnSA32to01,
-    PARAM_vpBtnSA64to33,
     //
-    PARAM_dirControl,       ///< Управление ключами (SAC2).
+    PARAM_dirControl = 0,   ///< Управление ключами (SAC2).
     PARAM_blkComPrmAll,     ///< Блокировка всех выходов приемника (SAC1).
     PARAM_blkComPrmDir,     ///< Блокировка направляений выхода приемника (SAnn.x)
     PARAM_blkComPrm32to01,  ///< Блокированные команды приемника с 1 по 32.
     PARAM_blkComPrm64to33,  ///< Блокированные команды приемника с 33 по 64.
     PARAM_blkComPrd32to01,  ///< Блокированные команды передатчика с 1 по 32.
     PARAM_blkComPrd64to33,  ///< Блокированные команды передатчика с 33 по 64.
+    // Кнопки панели виртуальных ключей.
+    PARAM_vpBtnSAnSbSac,
+    PARAM_vpBtnSA32to01,
+    PARAM_vpBtnSA64to33,
     //
     PARAM_MAX
 };
+
+/// Источник доступа к параметрам.
+enum src_t {
+    SRC_pi = 0, ///< БСП-ПИ
+    SRC_pc,     ///< Конфигуратор ПК
+    SRC_acs,    ///< АСУ
+    SRC_vkey,   ///< Панель виртуальных ключей.
+    //
+    SRC_MAX
+};
+
+/// Управление ключами
+enum dirControl_t {
+    DIR_CONTROL_local = 0,
+    DIR_CONTROL_remote,
+    //
+    DIR_CONTROL_MAX
+};
+
+///
 
 /** Класс параметров.
  *
@@ -40,8 +60,18 @@ class TParam {
     static TParam mParam;
 
     struct paramFields_t {
-        bool isValue = false;
-        uint32_t value = 0;
+        param_t param;
+        bool isValue;
+        uint32_t rValue;
+        uint32_t wValue;
+        bool (*set) (BVP::TParam*, BVP::src_t, uint32_t&);
+    };
+
+    enum vpBtnControl_t {
+        VP_BTN_CONTROL_sac1 = 0x00000001,
+        VP_BTN_CONTROL_sac2 = 0x00000002,
+        VP_BTN_CONTROL_sb   = 0x00000004,
+        VP_BTN_
     };
 
 public:
@@ -64,23 +94,51 @@ public:
      */
     bool isValueSet(param_t param) const;
 
-    /** Возвращает значение параметра.
+    /** Проверяет возможность чтения параметра из указанного источника.
      *
      *  @param[in] param Параметр.
-     *  @return значенеи параметра.
+     *  @param[in] src Источник доступа.
+     *  @return true если чтение разрешено, иначе false.
      */
-    uint32_t getValue(param_t param);
+    bool isAccessRead(param_t param, src_t src) const;
+
+    /** Проверяет возможность установки параметра из указанного источника.
+     *
+     *  @param[in] param Параметр.
+     *  @param[in] src Источник доступа.
+     *  @return true если запись разрешена, иначе false.
+     */
+    bool isAccessSet(param_t param, src_t src) const;
+
+    /** Возвращает значение параметра.
+     *
+     *  Значение не будет получено, если параметр еще не установлен или
+     *  не достаточно прав доступа.
+     *
+     *  @param[in] param Параметр.
+     *  @param[in] src Источник доступа.
+     *  @param[out] ok true если значение считано, иначе false.
+     *  @return Значение параметра.
+     */
+    uint32_t getValue(param_t param, src_t src, bool &ok);
 
     /** Устанавливает значение параметра.
      *
      *  @param[in] param Параметр.
+     *  @param[in] src Источник доступа.
      *  @param[in] value Значение параметра.
+     *  @return true если установлено новое значение, иначе false.
      */
-    void setValue(param_t param, uint32_t value);
+    bool setValue(param_t param, src_t src, uint32_t value);
 
 private:
     /// Значения параметров.
-    paramFields_t params[PARAM_MAX];
+    static paramFields_t params[PARAM_MAX];
+
+    friend bool setDirControl(TParam *params, src_t src, uint32_t &value);
+    friend bool setVpBtnSAnSbSac(TParam *params, src_t src, uint32_t &value);
+
+    void setLocalValue(param_t param, uint32_t value);
 };
 
 } // namespace BVP

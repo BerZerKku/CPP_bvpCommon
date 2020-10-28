@@ -94,10 +94,9 @@ TModbus::setEnable(bool enable) {
         mState = STATE_idle;
         mLen = 0;
         mTimeUs = 0;
-        cntLostMessage = kMaxLostMessage;
-        mState = STATE_idle;
     } else {
         mState = STATE_disable;
+        cntLostMessage = kMaxLostMessage;
     }
 
     return mState != STATE_disable;
@@ -417,50 +416,77 @@ TModbus::getWriteRegMsgData(uint16_t number, bool &ok) const {
 
         switch (static_cast<regWrite_t> (number)) {
             case REG_WRITE_enSanSbSac: {
-                param = PARAM_vpBtnSAnSbSac;
-                value = static_cast<uint16_t> (mParam->getValue(param));
+                param = PARAM_blkComPrmAll;
+                value = mParam->getValue(param, kSrc, ok) > 0 ? 0 : 1;
+                if (ok) {
+                    param = PARAM_dirControl;
+                    value |= mParam->getValue(param, kSrc, ok) > 0 ? 0 : 2;
+                }
+                if (ok) {
+                    param = PARAM_blkComPrmDir;
+                    value |= (~mParam->getValue(param, kSrc, ok)) << 8;
+                }
             } break;
             case REG_WRITE_enLed16to01: {
-                param = PARAM_blkComPrd32to01;
-                value = static_cast<uint16_t> (~mParam->getValue(param));
+                param = PARAM_blkComPrm32to01;
+                value = static_cast<uint16_t> (
+                            ~mParam->getValue(param, kSrc, ok));
             } break;
             case REG_WRITE_enLed32to17: {
-                param = PARAM_blkComPrd32to01;
-                value = static_cast<uint16_t> (~mParam->getValue(param) >> 16);
+                param = PARAM_blkComPrm32to01;
+                value = static_cast<uint16_t> (
+                            ~mParam->getValue(param, kSrc, ok) >> 16);
             } break;
             case REG_WRITE_enLed48to33: {
-                param = PARAM_blkComPrd64to33;
-                value = static_cast<uint16_t> (~mParam->getValue(param));
+                param = PARAM_blkComPrm64to33;
+                value = static_cast<uint16_t> (
+                            ~mParam->getValue(param, kSrc, ok));
             } break;
             case REG_WRITE_enLed64to49: {
-                param = PARAM_blkComPrd64to33;
-                value = static_cast<uint16_t> (~mParam->getValue(param) >> 16);
+                param = PARAM_blkComPrm64to33;
+                value = static_cast<uint16_t> (
+                            ~mParam->getValue(param, kSrc, ok)>> 16);
             } break;
             case REG_WRITE_dsSanSbSac: {
-                param = PARAM_vpBtnSAnSbSac;
-                value = static_cast<uint16_t> (mParam->getValue(param) >> 16);
+                param = PARAM_blkComPrmAll;
+                value = mParam->getValue(param, kSrc, ok) > 0 ? 1 : 0;
+                if (ok) {
+                    param = PARAM_dirControl;
+                    value |= mParam->getValue(param, kSrc, ok) > 0 ? 2 : 0;
+                }
+                if (ok) {
+                    param = PARAM_blkComPrmDir;
+                    value |= (mParam->getValue(param, kSrc, ok)) << 8;
+                }
             } break;
             case REG_WRITE_dsLed16to01: {
-                param = PARAM_blkComPrd32to01;
-                value = static_cast<uint16_t> (mParam->getValue(param));
+                param = PARAM_blkComPrm32to01;
+                value = static_cast<uint16_t> (
+                            mParam->getValue(param, kSrc, ok));
             } break;
             case REG_WRITE_dsLed32to17: {
-                param = PARAM_blkComPrd32to01;
-                value = static_cast<uint16_t> (mParam->getValue(param) >> 16);
+                param = PARAM_blkComPrm32to01;
+                value = static_cast<uint16_t> (
+                            mParam->getValue(param, kSrc, ok) >> 16);
             } break;
             case REG_WRITE_dsLed48to33: {
-                param = PARAM_blkComPrd64to33;
-                value = static_cast<uint16_t> (mParam->getValue(param));
+                param = PARAM_blkComPrm64to33;
+                value = static_cast<uint16_t> (
+                            mParam->getValue(param, kSrc, ok));
             } break;
             case REG_WRITE_dsLed64to49: {
-                param = PARAM_blkComPrd64to33;
-                value = static_cast<uint16_t> (mParam->getValue(param) >> 16);
+                param = PARAM_blkComPrm64to33;
+                value = static_cast<uint16_t> (
+                            mParam->getValue(param, kSrc, ok)>> 16);
             } break;
             case REG_WRITE_MAX: break;
         }
 
+        if (ok) {
+            ok = (param != PARAM_MAX);
+        }
+
         Q_ASSERT(param != PARAM_MAX);
-        ok = (param != PARAM_MAX);
     }
 
     return value;
@@ -515,43 +541,41 @@ TModbus::getReadRegMsgData(const uint8_t buf[], uint16_t number, bool &ok) {
 
         switch(static_cast<regRead_t> (number)) {
             case REG_READ_sanSbSac: {
-               param = PARAM_vpBtnSAnSbSac;
-               val32 = static_cast<uint32_t> (value);
-               val32 += (mParam->getValue(param) & 0xFFFF0000);
+                param = PARAM_vpBtnSAnSbSac;
+                val32 = static_cast<uint32_t> (value);
             } break;
             case REG_READ_sa16to01: {
                 param = PARAM_vpBtnSA32to01;
                 val32 = static_cast<uint32_t> (value);
-                val32 += (mParam->getValue(param) & 0xFFFF0000);
+                val32 += (mParam->getValue(param, kSrc, ok) & 0xFFFF0000);
             } break;
             case REG_READ_sa32to17: {
                 param = PARAM_vpBtnSA32to01;
                 val32 = (static_cast<uint32_t> (value)) << 16;
-                val32 += (mParam->getValue(param) & 0x0000FFFF);
+                val32 += (mParam->getValue(param, kSrc, ok) & 0x0000FFFF);
             } break;
             case REG_READ_sa48to33: {
                 param = PARAM_vpBtnSA64to33;
                 val32 = static_cast<uint32_t> (value);
-                val32 += (mParam->getValue(param) & 0xFFFF0000);
+                val32 += (mParam->getValue(param, kSrc, ok) & 0xFFFF0000);
             } break;
             case REG_READ_sa64to49: {
                 param = PARAM_vpBtnSA64to33;
                 val32 = (static_cast<uint32_t> (value)) << 16;
-                val32 += (mParam->getValue(param) & 0x0000FFFF);
+                val32 += (mParam->getValue(param, kSrc, ok) & 0x0000FFFF);
             } break;
             case REG_READ_MAX: break;
         }
 
-        Q_ASSERT(param != PARAM_MAX);
-        ok = (param != PARAM_MAX);
-
-        if (ok) {
-            mParam->setValue(param, val32);
+        if (param != PARAM_MAX) {
+            mParam->setValue(param, kSrc, val32);
         }
+
+        Q_ASSERT(param != PARAM_MAX);       
+        ok = (param != PARAM_MAX);
     }
 
     return nbytes;
 }
-
 
 } // namespace BVP
