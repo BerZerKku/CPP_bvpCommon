@@ -84,14 +84,9 @@ public:
   bool setNetAddress(uint16_t address) override;
   bool setup(uint32_t baudrate, bool parity, uint8_t stopbits) override;
   bool setTimeTick(uint32_t ticktimeus) override;
+  void setID(uint32_t id) override;
   void tick() override;
   bool isConnection() const override;
-
-  /** Устанавливает источник доступа для протокола.
-   *
-   *  @param[in] src Источник доступа.
-   */
-  void setSource(src_t src);
 
 private:
   /// Источник доступа протокола.

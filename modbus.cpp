@@ -283,8 +283,10 @@ TModbus::isConnection() const {
 
 //
 void
-TModbus::setSource(src_t src) {
-  *(const_cast<src_t*> (&mSrc)) = src;
+TModbus::setID(uint32_t id) {
+  Q_ASSERT(id < SRC_MAX);
+
+  *(const_cast<src_t*> (&mSrc)) = static_cast<src_t> (id);
 }
 
 //

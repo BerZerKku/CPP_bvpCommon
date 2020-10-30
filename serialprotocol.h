@@ -60,6 +60,12 @@ public:
    */
   virtual bool setTimeTick(uint32_t ticktime) = 0;
 
+  /** Устанавливает ID протокола.
+   *
+   *  @param[in] id ID протокола.
+   */
+  virtual void setID(uint32_t id) = 0;
+
   /** Устанавливает настройки последовательного порта.
    *
    *  @param[in] baudrate Скорость работы порта, бит/с.
