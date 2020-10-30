@@ -2,7 +2,8 @@
 #define TPARAM_H
 
 #include <stdint.h>
-#include <QDebug>
+#include "debug.hpp"
+#include "hardware.hpp"
 
 namespace BVP {
 

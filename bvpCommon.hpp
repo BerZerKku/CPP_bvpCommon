@@ -8,6 +8,7 @@
 #ifndef BVPCOMMON_HPP_
 #define BVPCOMMON_HPP_
 
+#include "debug.hpp"
 #include <cstdint>
 
 #ifndef TEST_FRIENDS

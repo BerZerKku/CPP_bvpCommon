@@ -4,8 +4,6 @@
 #include <cstdint>
 #include "param.h"
 
-#include <QDebug>
-
 namespace BVP {
 
 class TSerialProtocol {
