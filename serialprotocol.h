@@ -32,12 +32,15 @@ public:
    */
   virtual bool write() = 0;
 
-  /** Извлекает байт данных для передачи.
+  /** Извлекает данные для передачи.
    *
-   *  @param[out] byte Байт данных.
-   * @return true если байт для передачи есть, иначе false.
+   *  @param[out] data Указатель на начало данных.
+   *  @return Количество байт для передачи.
    */
-  virtual bool pop(uint8_t &byte) = 0;
+  virtual uint16_t pop(uint8_t *data[]) = 0;
+
+  /// Сообщает об окончании передачи данных.
+  virtual void sendFinished() = 0;
 
   /** Добавляет принятый байт данных.
    *

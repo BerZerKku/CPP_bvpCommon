@@ -3,12 +3,11 @@
 namespace BVP {
 
 //
-TSerialProtocol::TSerialProtocol() :
-  mParam(nullptr),
-  mBuf(nullptr),
-  mSize(0),
-  mPos(0),
-  mLen(0) {
+TSerialProtocol::TSerialProtocol() : mParam(nullptr),
+                                     mBuf(nullptr),
+                                     mSize(0),
+                                     mPos(0),
+                                     mLen(0) {
 
   *(const_cast<TParam**> (&mParam)) = TParam::getInstance();
 }

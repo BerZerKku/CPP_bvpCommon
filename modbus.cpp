@@ -159,29 +159,39 @@ TModbus::write() {
         mState = STATE_reqSend;
       }
     }
-
   }
 
   return mState == STATE_reqSend;
 }
 
 //
-bool
-TModbus::pop(uint8_t &byte) {
-  uint16_t pos = mPos;
+uint16_t
+TModbus::pop(uint8_t *data[]) {
+  uint16_t len = 0;
+  *data = &mBuf[mPos];
+
+  Q_ASSERT(mState == STATE_reqSend);
 
   if (mState == STATE_reqSend) {
-    if (mPos < mLen) {
-      byte = mBuf[mPos++];
-    } else {
-      mState = STATE_waitForReply;
-      mPos = 0;
-      mLen = 0;
-      mTimeUs = 0;
-    }
+    len = mLen;
+    mState = STATE_waitForSend;
   }
 
-  return mPos > pos;
+  return mLen;
+}
+
+//
+void TModbus::sendFinished() {
+   Q_ASSERT(mState == STATE_waitForSend);
+
+  if (mState == STATE_waitForSend) {
+    mPos = 0;
+    mLen = 0;
+    mTimeUs = 0;
+    mState = STATE_waitForReply;
+  } else {
+    mState = STATE_idle;
+  }
 }
 
 //

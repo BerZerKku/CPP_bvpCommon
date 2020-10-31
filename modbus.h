@@ -14,6 +14,7 @@ class TModbus : public TSerialProtocol {
     STATE_disable = 0,
     STATE_idle,
     STATE_reqSend,
+    STATE_waitForSend,
     STATE_waitForReply,
     STATE_procReply,
     STATE_errorReply,
@@ -79,8 +80,9 @@ public:
   /// Проверяет наличие считанного сообщения.
   bool read() override;
   bool write() override;
-  bool pop(uint8_t &byte) override;
-  bool push(uint8_t byte) override;
+  uint16_t pop(uint8_t *data[]) override;
+  void sendFinished() override;
+  bool push(uint8_t byte) override;  
   bool setNetAddress(uint16_t address) override;
   bool setup(uint32_t baudrate, bool parity, uint8_t stopbits) override;
   bool setTimeTick(uint32_t ticktimeus) override;
