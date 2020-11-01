@@ -177,12 +177,12 @@ TModbus::pop(uint8_t *data[]) {
     mState = STATE_waitForSend;
   }
 
-  return mLen;
+  return len;
 }
 
 //
 void TModbus::sendFinished() {
-   Q_ASSERT(mState == STATE_waitForSend);
+  Q_ASSERT(mState == STATE_waitForSend || mState == STATE_disable);
 
   if (mState == STATE_waitForSend) {
     mPos = 0;
@@ -574,7 +574,7 @@ TModbus::getReadRegMsgData(const uint8_t buf[], uint16_t number, bool &ok) {
 
 uint16_t TModbus::calcCRC(const uint8_t buf[], size_t len, uint16_t crc) {
   for(size_t i = 0; i < len; i++) {
-    unsigned char lut = (crc ^ buf[i]) & 0xFF;
+    uint8_t lut = (crc ^ buf[i]) & 0xFF;
     crc = (crc >> 8) ^ crc_ibm_table[lut];
   }
 
