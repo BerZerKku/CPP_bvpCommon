@@ -26,6 +26,9 @@ public:
    */
   virtual bool read() = 0;
 
+  /// Обрабатывает ошибку приема данных.
+  virtual void readError() = 0;
+
   /** Подготавливает сообщение для передачи.
    *
    *  @return true если есть сообщение для передачи, иначе false.
@@ -100,6 +103,7 @@ protected:
   const uint16_t mSize;   /// Размер буфера данных.
   uint16_t mPos;          /// Текущая позиция в буфере.
   uint16_t mLen;          /// Количество байт данных по протоколу.
+  const uint8_t mNetAddress;    ///< Адрес опрашиваемого устройства.
 };
 
 } // namespace BVP
