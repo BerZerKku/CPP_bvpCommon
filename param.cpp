@@ -121,6 +121,12 @@ bool setBlkComPrm32to01(TParam *params, src_t src, uint32_t &value) {
       if (value > 0) {
         uint32_t dir = params->getValue(PARAM_dirControl, src, ok);
         ok = ok && (dir == DIR_CONTROL_local);
+
+        if (ok) {
+          uint32_t blkall = params->getValue(PARAM_blkComPrmAll, src, ok);
+          ok = ok && (blkall == ON_OFF_off);
+        }
+
         if (ok) {
           uint32_t v = params->getValue(PARAM_blkComPrm32to01, src, ok);
           if (ok) {
@@ -157,6 +163,12 @@ bool setBlkComPrm64to33(TParam *params, src_t src, uint32_t &value) {
       if (value > 0) {
         uint32_t dir = params->getValue(PARAM_dirControl, src, ok);
         ok = ok && (dir == DIR_CONTROL_local);
+
+        if (ok) {
+          uint32_t blkall = params->getValue(PARAM_blkComPrmAll, src, ok);
+          ok = ok && (blkall == ON_OFF_off);
+        }
+
         if (ok) {
           uint32_t v = params->getValue(PARAM_blkComPrm64to33, src, ok);
           if (ok) {
