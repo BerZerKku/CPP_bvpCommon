@@ -63,7 +63,7 @@ class TModbusVp : public TSerialProtocol {
   const uint32_t kMaxTimeToResponseUs = 200000UL;
   /// Максимальное количество сообщений без ответа до потери связи.
   const uint8_t kMaxLostMessage = 5;
-  /// Максимальная длинна RTU кадра
+  /// Максимальная длина RTU кадра
   const uint16_t kMaxSizeFrameRtu = 256;
 
 public:
@@ -71,17 +71,17 @@ public:
   ~TModbusVp() override;
 
   bool setEnable(bool enable) override;
+  bool isEnable() const override;
   bool read() override;
   void readError() override;
   bool write() override;
   uint16_t pop(uint8_t *data[]) override;
   void sendFinished() override;
-  bool push(uint8_t byte) override;  
+  bool vPush(uint8_t byte) override;
   bool setNetAddress(uint16_t address) override;
-  bool setup(uint32_t baudrate, bool parity, uint8_t stopbits) override;
-  bool setTimeTick(uint32_t ticktimeus) override;
+  bool vSetup(uint32_t baudrate, bool parity, uint8_t stopbits) override;
   void setID(uint32_t id) override;
-  void tick() override;
+  void vTick() override;
   bool isConnection() const override;
 
 private:
@@ -89,12 +89,6 @@ private:
   const src_t mSrc;
   /// Текущее состояние.
   state_t mState;
-  /// Текущее время
-  uint32_t mTimeUs;
-  /// Период вызова функции tick.
-  const uint32_t mTimeTickUs;
-  /// Время передачи/приема одного байта данных.
-  const uint32_t mTimeOneByteUs;
   /// Количество тиков для определения принятого сообщения.
   const uint32_t mTimeToCompleteUs;
   /// Количество тиков для определения ошибки принятия сообщения.

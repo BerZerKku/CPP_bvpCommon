@@ -7,6 +7,10 @@
 namespace BVP {
 
 class TSerialProtocol {
+
+  /// Максимальное время с момента принятия первого байта данных, мкс.
+  static const uint32_t kMaxTimeFromReadFirstByte = 10000000UL;
+
 public:
   TSerialProtocol();
   virtual ~TSerialProtocol();
@@ -19,6 +23,9 @@ public:
    *  @return true если протокол запущен, иначе false.
    */
   virtual bool setEnable(bool enable) = 0;
+
+  /// Проверяет запущен протокол или нет.
+  virtual bool isEnable() const = 0;
 
   /** Обрабатывает принятые сообщения.
    *
@@ -50,7 +57,7 @@ public:
    *  @param[in] byte Байт данных.
    *  @return true если байт обработан, иначе false.
    */
-  virtual bool push(uint8_t byte) = 0;
+  bool push(uint8_t byte);
 
   /** Устанавливает адрес устройства в локальной сети.
    *
@@ -64,7 +71,7 @@ public:
    *  @param[in] ticktime Период вызова функции tick, мкс.
    *  @return true если период корректный, иначе false.
    */
-  virtual bool setTimeTick(uint32_t ticktime) = 0;
+  bool setTimeTick(uint32_t ticktime);
 
   /** Устанавливает ID протокола.
    *
@@ -79,10 +86,10 @@ public:
    *  @param[in] stopbits Количество стоп-бит, 1 или 2.
    *  @return  true если настройки корректные, иначе false.
    */
-  virtual bool setup(uint32_t baudrate, bool parity, uint8_t stopbits) = 0;
+  bool setup(uint32_t baudrate, bool parity, uint8_t stopbits);
 
   /// Вызывается с периодом указанным в setupTick.
-  virtual void tick() = 0;
+  void tick();
 
   /** Устанавливает буфер и его размер.
    *
@@ -97,13 +104,54 @@ public:
    */
   virtual bool isConnection() const = 0;
 
+  /** Возвращает время прошедшее с момента приема первого байта сообщения, мкс.
+   *
+   *  @return Время.
+   */
+  uint32_t getTimeFromReadStart() const {
+    return mTimeReadStart;
+  }
+
 protected:
   TParam * const mParam;  /// Параметры.
   uint8_t * const mBuf;   /// Буфер данных.
   const uint16_t mSize;   /// Размер буфера данных.
   uint16_t mPos;          /// Текущая позиция в буфере.
   uint16_t mLen;          /// Количество байт данных по протоколу.
-  const uint8_t mNetAddress;    ///< Адрес опрашиваемого устройства.
+  const uint8_t mNetAddress;  ///< Адрес опрашиваемого устройства.
+  uint32_t mTimeReadStart;    ///< Время прошедшее с момента приема первого байта.
+  uint32_t mTimeUs;           ///< Счетчик времени.
+  const uint32_t mTimeTickUs; ///< Период вызова функции tick.
+  const uint32_t mTimeOneByteUs;  ///< Время передачи/приема одного байта данных.
+
+  /** Добавляет принятый байт данных.
+   *
+   *  Прием байта для протокола.
+   *
+   *  Для правильного определения времени прошедшего с момента приема первого
+   *  байта данных, необходимо текущее количество байт данных хранить в mPos.
+   *
+   *  @param[in] byte Байт данных.
+   *  @return true если байт обработан, иначе false.
+   */
+  virtual bool vPush(uint8_t byte) = 0;
+
+  /** Вызывается с периодом указанным в setupTick.
+   *
+   *  Обработка времени для протокола.
+   */
+  virtual void vTick() = 0;
+
+  /** Устанавливает настройки последовательного порта.
+   *
+   *  Настройка для протокола.
+   *
+   *  @param[in] baudrate Скорость работы порта, бит/с.
+   *  @param[in] parity true если включен контроль четности, иначе false.
+   *  @param[in] stopbits Количество стоп-бит, 1 или 2.
+   *  @return  true если настройки корректные, иначе false.
+   */
+  virtual bool vSetup(uint32_t baudrate, bool parity, uint8_t stopbits) = 0;
 };
 
 } // namespace BVP

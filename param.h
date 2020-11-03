@@ -9,7 +9,9 @@ namespace BVP {
 
 enum param_t {
   //
-  PARAM_dirControl = 0,   ///< Управление ключами (SAC2).
+  PARAM_control,          ///< Сигналы управления.
+  // Параметры панели виртуальных ключей
+  PARAM_dirControl,       ///< Управление ключами (SAC2).
   PARAM_blkComPrmAll,     ///< Блокировка всех выходов приемника (SAC1).
   PARAM_blkComPrmDir,     ///< Блокировка направляений выхода приемника (SAnn.x)
   PARAM_blkComPrm32to01,  ///< Блокированные команды приемника с 1 по 32.
@@ -32,6 +34,17 @@ enum src_t {
   SRC_vkey,   ///< Панель виртуальных ключей.
   //
   SRC_MAX
+};
+
+/// Сигналы управления.
+enum ctrl_t {
+  CTRL_MIN = 1,
+  //
+  CTRL_resetErrors = CTRL_MIN,
+  CTRL_resetIndication,
+  //
+  CTRL_MAX
+
 };
 
 /// Управление ключами
@@ -85,7 +98,8 @@ class TParam {
   };
 
 public:
-  TParam() {}
+  /// Конструктор.
+  TParam();
   /// Конструктор копирования запрещен.
   TParam(TParam &other) = delete;
   /// Конструктор присваивания запрещен.
@@ -146,13 +160,15 @@ private:
   static paramFields_t params[PARAM_MAX];
 
   friend bool getBlkComPrm(TParam *params, src_t src, uint32_t &value);
+  friend bool getControl(TParam *params, src_t src, uint32_t &value);
 
-  friend bool setDirControl(TParam *params, src_t src, uint32_t &value);
   friend bool setBlkComPrmAll(TParam *params, src_t src, uint32_t &value);
   friend bool setBlkComPrm32to01(TParam *params, src_t src, uint32_t &value);
   friend bool setBlkComPrm64to33(TParam *params, src_t src, uint32_t &value);
   friend bool setBtnSA32to01(TParam *params, src_t src, uint32_t &value);
   friend bool setBtnSA64to33(TParam *params, src_t src, uint32_t &value);
+  friend bool setControl(TParam *params, src_t src, uint32_t &value);
+  friend bool setDirControl(TParam *params, src_t src, uint32_t &value);
   friend bool setVpBtnSAnSbSac(TParam *params, src_t src, uint32_t &value);
 
   void setLocalValue(param_t param, uint32_t value);

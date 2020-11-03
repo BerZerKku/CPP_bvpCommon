@@ -1,4 +1,6 @@
+#include "global.hpp"
 #include "modbusVp.h"
+
 
 namespace BVP {
 
@@ -43,9 +45,6 @@ static const uint16_t crc_ibm_table[256] = {
 TModbusVp::TModbusVp() :
   mSrc(SRC_MAX),
   mState(STATE_disable),
-  mTimeUs(0),
-  mTimeTickUs(0),
-  mTimeOneByteUs(0),
   mTimeToCompleteUs(0),
   mTimeToErrorUs(0),
   cntLostMessage(kMaxLostMessage) {
@@ -73,6 +72,12 @@ TModbusVp::setEnable(bool enable) {
     cntLostMessage = kMaxLostMessage;
   }
 
+  return mState != STATE_disable;
+}
+
+//
+bool
+TModbusVp::isEnable() const {
   return mState != STATE_disable;
 }
 
@@ -162,7 +167,6 @@ TModbusVp::write() {
 
       if (len > 0) {
         mLen = len;
-        mPos = 0;
         mTimeUs = 0;
         mState = STATE_reqSend;
       }
@@ -176,7 +180,7 @@ TModbusVp::write() {
 uint16_t
 TModbusVp::pop(uint8_t *data[]) {
   uint16_t len = 0;
-  *data = &mBuf[mPos];
+  *data = &mBuf[0];
 
   Q_ASSERT(mState == STATE_reqSend);
 
@@ -193,8 +197,8 @@ void TModbusVp::sendFinished() {
   Q_ASSERT(mState == STATE_waitForSend || mState == STATE_disable);
 
   if (mState == STATE_waitForSend) {
-    mPos = 0;
     mLen = 0;
+    mPos = 0;
     mTimeUs = 0;
     mState = STATE_waitForReply;
   } else {
@@ -204,23 +208,28 @@ void TModbusVp::sendFinished() {
 
 //
 bool
-TModbusVp::push(uint8_t byte) {
-  uint16_t len = mLen;
+TModbusVp::vPush(uint8_t byte) {
+  uint16_t pos = 0;
 
   if (mState == STATE_waitForReply) {
-    if ((len == 0) || ((len < mSize) && (mTimeUs < mTimeToErrorUs))) {
-      mBuf[mLen++] = byte;
+    pos = mPos;
+
+    if ((pos == 0) || ((pos < mSize) && (mTimeUs < mTimeToErrorUs))) {
+      mBuf[pos++] = byte;
       mTimeUs = 0;
     } else {
       mState = STATE_errorReply;
+      pos = 0;
     }
+
+    mPos = pos;
   }
 
   if (mState == STATE_errorReply) {
     mTimeUs = 0;
   }
 
-  return mLen > len;
+  return pos != 0;
 }
 
 //
@@ -235,13 +244,12 @@ TModbusVp::setNetAddress(uint16_t address) {
 
 //
 bool
-TModbusVp::setup(uint32_t baudrate, bool parity, uint8_t stopbits) {
-  uint8_t nbites = 1 + 8 + stopbits + (parity ? 1 : 0);
+TModbusVp::vSetup(uint32_t baudrate, bool parity, uint8_t stopbits) {
+  UNUSED(baudrate);
+  UNUSED(parity);
+  UNUSED(stopbits);
 
   // TODO Проверить времена в железе. На ПК от них толка нет.
-
-  *(const_cast<uint32_t*> (&mTimeOneByteUs)) =
-      static_cast<uint32_t> ((1000000UL / baudrate) * nbites);
   *(const_cast<uint32_t*> (&mTimeToCompleteUs)) = (mTimeOneByteUs * 7) / 2;   // 3.5 char
   *(const_cast<uint32_t*> (&mTimeToErrorUs)) = (mTimeOneByteUs * 3) / 2;      // 1.5 char
 
@@ -251,35 +259,31 @@ TModbusVp::setup(uint32_t baudrate, bool parity, uint8_t stopbits) {
   *(const_cast<uint32_t*> (&mTimeToErrorUs)) = mTimeToErrorUs * 10;
 #endif
 
-  return mTimeOneByteUs;
-}
-
-//
-bool TModbusVp::setTimeTick(uint32_t ticktimeus) {
-  *(const_cast<uint32_t*> (&mTimeTickUs)) = ticktimeus;
-
-  return mTimeTickUs != 0;
+  return mTimeOneByteUs > 0;
 }
 
 //
 void
-TModbusVp::tick() {
+TModbusVp::vTick() {
   if (mState == STATE_disable) {
     return;
   }
+
+  // TODO Добавить сброс протокола, например из waitForSend и др.
 
   if (mTimeUs < kMaxTimeToResponseUs) {
     mTimeUs += mTimeTickUs;
   }
 
   if (mState == STATE_waitForReply) {
-    if (mLen == 0) {
+    if (mPos == 0) {
       if (mTimeUs >=  kMaxTimeToResponseUs) {
         mState = STATE_idle;
         incLostMessageCounter();
       }
     } else {
       if (mTimeUs > mTimeToCompleteUs) {
+        mLen = mPos;
         mState = STATE_procReply;
       }
     }

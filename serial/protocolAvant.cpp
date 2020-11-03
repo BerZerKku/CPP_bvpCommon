@@ -1,3 +1,4 @@
+#include "global.hpp"
 #include "protocolAvant.h"
 
 namespace BVP {
@@ -6,10 +7,8 @@ namespace BVP {
 TProtocolAvant::TProtocolAvant() :
   mSrc(SRC_MAX),
   mState(STATE_disable),
-  mTimeUs(0),
-  mTimeTickUs(0),
-  mTimeOneByteUs(0),
   cntLostMessage(kMaxLostMessage) {
+
 }
 
 //
@@ -39,31 +38,25 @@ TProtocolAvant::setEnable(bool enable) {
 
 //
 bool
+TProtocolAvant::isEnable() const {
+  return mState != STATE_disable;
+}
+
+//
+bool
 TProtocolAvant::read() {
   bool isread = false;
 
   if (mState == STATE_procReply) {
     bool ok = true;
-    uint16_t len = mLen;
-    uint16_t position = 0;
 
-    position += checkReadMsg(&mBuf[position], len, ok);
+    uint8_t crcpkg = mBuf[--mLen];
+    if (crcpkg != calcCRC(&mBuf[POS_COM], mLen - POS_COM)) {
+      ok = false;
+    }
 
     if (ok) {
-      switch(static_cast<com_t> (mBuf[position++])) {
-        case COM_readHoldingRegs: {
-          position += getReadReg(&mBuf[position], len,
-                                 REG_READ_MIN, REG_READ_MAX-1, ok);
-        } break;
-        case COM_writeMultRegs : {
-          // TODO добавить проверку сообщения.
-        } break;
-        case COM_readWriteRegs: {
-          position += getReadReg(&mBuf[position], len,
-                                 REG_READ_MIN, REG_READ_MAX-1, ok);
-        } break;
-      }
-      cntLostMessage = 0;
+      ok  = vReadAvant();
     }
 
     if (!ok) {
@@ -92,34 +85,16 @@ TProtocolAvant::write() {
   if (mState == STATE_idle) {
     bool ok = true;
     uint16_t len = 0;
-    com_t com = COM_readWriteRegs;
 
-    mBuf[len++] = mNetAddress;
-    mBuf[len++] = com;
-
-    switch(com) {
-      case COM_readHoldingRegs: {
-        len += addReadRegMsg(&mBuf[len],
-                             REG_READ_MIN, REG_READ_MAX-1, ok);
-      } break;
-      case COM_writeMultRegs : {
-        len += addReadRegMsg(&mBuf[len],
-                             REG_READ_MIN, REG_READ_MAX-1, ok);
-      } break;
-      case COM_readWriteRegs: {
-        len += addReadRegMsg(&mBuf[len],
-                             REG_READ_MIN, REG_READ_MAX-1, ok);
-        len += addWriteRegMsg(&mBuf[len],
-                              REG_WRITE_MIN, REG_WRITE_MAX-1, ok);
-      } break;
-    }
+    mLen = 0;
+    ok = vWriteAvant();
 
     if (ok) {
-      uint16_t crc =  calcCRC(mBuf, len);
-      mBuf[len++] = static_cast<uint8_t> (crc);
-      mBuf[len++] = static_cast<uint8_t> (crc >> 8);
-
-      Q_ASSERT(len < kMaxSizeFrameRtu);
+      mBuf[POS_PMBL_55] = 0x55;
+      mBuf[POS_PMBL_AA] = 0xAA;
+      len = kMinLenFrame + mBuf[POS_DATA_LEN] - 1;
+      uint8_t crc =  calcCRC(&mBuf[POS_COM], len - POS_COM);
+      mBuf[len++] = crc;
 
       if (len > 0) {
         mLen = len;
@@ -143,7 +118,7 @@ TProtocolAvant::pop(uint8_t *data[]) {
 
   if (mState == STATE_reqSend) {
     len = mLen;
-    mState = STATE_waitForSend;
+    mState = STATE_waitSendFinished;
   }
 
   return len;
@@ -151,9 +126,9 @@ TProtocolAvant::pop(uint8_t *data[]) {
 
 //
 void TProtocolAvant::sendFinished() {
-  Q_ASSERT(mState == STATE_waitForSend || mState == STATE_disable);
+  Q_ASSERT(mState == STATE_waitSendFinished || mState == STATE_disable);
 
-  if (mState == STATE_waitForSend) {
+  if (mState == STATE_waitSendFinished) {
     mPos = 0;
     mLen = 0;
     mTimeUs = 0;
@@ -165,58 +140,64 @@ void TProtocolAvant::sendFinished() {
 
 //
 bool
-TProtocolAvant::push(uint8_t byte) {
-  uint16_t len = mLen;
+TProtocolAvant::vPush(uint8_t byte) {
+  uint16_t pos = 0;
 
   if (mState == STATE_waitForReply) {
-    if ((len == 0) || ((len < mSize) && (mTimeUs < mTimeToErrorUs))) {
-      mBuf[mLen++] = byte;
-      mTimeUs = 0;
+    pos = mPos;
+    mBuf[pos] = byte;
+
+    if (pos == POS_PMBL_55) {
+      pos = (byte == 0x55) ? pos + 1 : 0;
+    } else if (pos == POS_PMBL_AA) {
+      pos = (byte == 0xAA) ? pos + 1 : 0;
+      mLen = kMinLenFrame;
+    } else if (pos == POS_DATA_LEN) {
+      if (mSize >= (kMinLenFrame + byte)) {
+        mLen += byte;
+        pos = pos + 1;
+      } else {
+        pos = 0;
+      }
     } else {
-      mState = STATE_errorReply;
+      pos++;
+      if (pos >= mLen) {
+        mState = STATE_procReply;
+      }
     }
+
+    mTimeUs = 0;
+    mPos = pos;
   }
 
   if (mState == STATE_errorReply) {
     mTimeUs = 0;
   }
 
-  return mLen > len;
+  return pos != 0;
 }
 
 //
 bool
 TProtocolAvant::setNetAddress(uint16_t address) {
-  if ((address > 0) && (address <= 247)) {
-    *(const_cast<uint8_t *> (&mNetAddress)) = static_cast<uint8_t> (address);
-  }
+  *(const_cast<uint8_t *> (&mNetAddress)) = static_cast<uint8_t> (address);
 
   return mNetAddress == address;
 }
 
 //
 bool
-TProtocolAvant::setup(uint32_t baudrate, bool parity, uint8_t stopbits) {
-  uint8_t nbites = 1 + 8 + stopbits + (parity ? 1 : 0);
+TProtocolAvant::vSetup(uint32_t baudrate, bool parity, uint8_t stopbits) {
+  UNUSED(baudrate);
+  UNUSED(parity);
+  UNUSED(stopbits);
 
-  // TODO Проверить времена в железе. На ПК от них толка нет.
-
-  *(const_cast<uint32_t*> (&mTimeOneByteUs)) =
-      static_cast<uint32_t> ((1000000UL / baudrate) * nbites);
-
-  return mTimeOneByteUs;
-}
-
-//
-bool TProtocolAvant::setTimeTick(uint32_t ticktimeus) {
-  *(const_cast<uint32_t*> (&mTimeTickUs)) = ticktimeus;
-
-  return mTimeTickUs != 0;
+  return mTimeOneByteUs > 0;
 }
 
 //
 void
-TProtocolAvant::tick() {
+TProtocolAvant::vTick() {
   if (mState == STATE_disable) {
     return;
   }
@@ -226,20 +207,7 @@ TProtocolAvant::tick() {
   }
 
   if (mState == STATE_waitForReply) {
-    if (mLen == 0) {
-      if (mTimeUs >=  kMaxTimeToResponseUs) {
-        mState = STATE_idle;
-        incLostMessageCounter();
-      }
-    } else {
-      if (mTimeUs > mTimeToCompleteUs) {
-        mState = STATE_procReply;
-      }
-    }
-  }
-
-  if (mState == STATE_errorReply) {
-    if (mTimeUs >= mTimeToCompleteUs) {
+    if (mTimeUs >= kMaxTimeToResponseUs) {
       mState = STATE_idle;
       incLostMessageCounter();
     }
@@ -268,8 +236,29 @@ TProtocolAvant::incLostMessageCounter() {
   }
 }
 
+//
+void
+TProtocolAvant::setCom(uint8_t com) {
+  mBuf[POS_COM] = com;
+  mBuf[POS_DATA_LEN] = 0;
+}
+
+//
+void
+TProtocolAvant::addByte(uint8_t byte, uint16_t nbyte) {
+  nbyte = (nbyte > 0) ? nbyte - 1 : mBuf[POS_DATA_LEN];
+
+  Q_ASSERT(nbyte < (mSize - kMinLenFrame));
+
+  if (mBuf[POS_DATA_LEN]< nbyte) {
+    mBuf[POS_DATA_LEN] = nbyte + 1;
+  }
+
+  mBuf[POS_DATA + nbyte] = byte;
+}
+
 uint8_t TProtocolAvant::calcCRC(const uint8_t buf[], size_t len, uint8_t crc) {
-  for(size_t i = 2; i < len; i++) {
+  for(size_t i = 0; i < len; i++) {
     crc += buf[i];
   }
 

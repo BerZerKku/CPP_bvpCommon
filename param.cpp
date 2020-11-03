@@ -1,18 +1,14 @@
+#include "global.hpp"
 #include "param.h"
 
 namespace BVP {
 
 TParam TParam::mParam;
 
-/**
- * @brief getBlkComPrm32to01
- * @param params
- * @param src
- * @param ok
- * @return
- */
-bool getBlkComPrm(TParam *params, src_t src, uint32_t &value) {
-  bool ok = true;
+//
+bool
+getBlkComPrm(TParam *params, src_t src, uint32_t &value) {
+  bool ok = false;
 
   if (src == SRC_vkey) {
     uint32_t blkall = params->getValue(PARAM_blkComPrmAll, src, ok);
@@ -25,12 +21,251 @@ bool getBlkComPrm(TParam *params, src_t src, uint32_t &value) {
   return ok;
 }
 
-/**
- * @brief setDirControl
- * @param params
- * @param value
- * @return
+/** Считывание сигналов управления.
+ *
+ *  Для SRC_pi возвращается самый приоритетный на данный момент сигнал
+ *  управления ctrl_t.
+ *  Для SRC_vkey возвращается текущее состояние сигналов управления.
+ *
+ *  @param[in] params Параметры.
+ *  @param[in] src Источник доступа.
+ *  @param[in/out] value Значение.
+ *  @return true если значение можно считать, иначе false.
  */
+bool
+getControl(TParam *params, src_t src, uint32_t &value) {
+  bool ok = false;
+
+  UNUSED(params);
+
+  switch(src) {
+    case SRC_pi: {
+      if (value > 0) {
+        uint8_t i = 0;
+        while((value & (1 << i)) == 0) {
+          i++;
+        }
+        value = i + CTRL_MIN;
+      }
+      ok = true;
+    } break;
+
+    case SRC_vkey: {
+      ok = true;
+    } break;
+    case SRC_pc: break;
+    case SRC_acs: break;
+    case SRC_MAX: break;
+  }
+
+  return ok;
+}
+
+//
+bool
+setBlkComPrmAll(TParam *params, src_t src, uint32_t &value) {
+  bool ok = false;
+
+  switch(src) {
+    case SRC_pi: {
+      ok = true;
+    } break;
+
+    case SRC_vkey: {
+      if (value > 0) {
+        uint32_t dir = params->getValue(PARAM_dirControl, src, ok);
+        ok = ok && (dir == DIR_CONTROL_local);
+        if (ok) {
+          uint32_t v = params->getValue(PARAM_blkComPrmAll, src, ok);
+          if (ok) {
+            value = (v == ON_OFF_off) ? ON_OFF_on : ON_OFF_off;
+          }
+        }
+      }
+    } break;
+
+    case SRC_pc: break;
+    case SRC_acs: break;
+    case SRC_MAX: break;
+  }
+
+  return ok;
+}
+
+//
+bool
+setBlkComPrm32to01(TParam *params, src_t src, uint32_t &value) {
+  bool ok = false;
+
+  switch(src) {
+    case SRC_pi: {
+      ok = true;
+    } break;
+
+    case SRC_vkey: {
+      if (value > 0) {
+        uint32_t dir = params->getValue(PARAM_dirControl, src, ok);
+        ok = ok && (dir == DIR_CONTROL_local);
+
+        if (ok) {
+          uint32_t blkall = params->getValue(PARAM_blkComPrmAll, src, ok);
+          ok = ok && (blkall == ON_OFF_off);
+        }
+
+        if (ok) {
+          uint32_t v = params->getValue(PARAM_blkComPrm32to01, src, ok);
+          if (ok) {
+            value = v ^ value;
+          }
+        }
+      }
+    } break;
+
+    case SRC_pc: break;
+    case SRC_acs: break;
+    case SRC_MAX: break;
+  }
+
+  return ok;
+}
+
+//
+bool
+setBlkComPrm64to33(TParam *params, src_t src, uint32_t &value) {
+  bool ok = false;
+
+  switch(src) {
+    case SRC_pi: {
+      ok = true;
+    } break;
+
+    case SRC_vkey: {
+      if (value > 0) {
+        uint32_t dir = params->getValue(PARAM_dirControl, src, ok);
+        ok = ok && (dir == DIR_CONTROL_local);
+
+        if (ok) {
+          uint32_t blkall = params->getValue(PARAM_blkComPrmAll, src, ok);
+          ok = ok && (blkall == ON_OFF_off);
+        }
+
+        if (ok) {
+          uint32_t v = params->getValue(PARAM_blkComPrm64to33, src, ok);
+          if (ok) {
+            value = v ^ value;
+          }
+        }
+      }
+    } break;
+
+    case SRC_pc: break;
+    case SRC_acs: break;
+    case SRC_MAX: break;
+  }
+
+  return ok;
+}
+
+//
+bool
+setBtnSA32to01(TParam *params, src_t src, uint32_t &value) {
+  bool ok = false;
+
+  if (src == SRC_vkey) {
+    param_t param = PARAM_vpBtnSA32to01;
+    if (params->isValueSet(param)) {
+      uint32_t tvalue = value ^ params->getValue(param, src, ok);
+
+      if (tvalue > 0) {
+        params->setValue(PARAM_blkComPrm32to01, src, value);
+      }
+    }
+    ok = true;
+  }
+
+  return ok;
+}
+
+//
+bool
+setBtnSA64to33(TParam *params, src_t src, uint32_t &value) {
+  bool ok = false;
+
+
+  if (src == SRC_vkey) {
+    param_t param = PARAM_vpBtnSA64to33;
+    if (params->isValueSet(param)) {
+      uint32_t tvalue = value ^ params->getValue(param, src, ok);
+
+      if (tvalue > 0) {
+        params->setValue(PARAM_blkComPrm64to33, src, value);
+      }
+    }
+
+    ok = true;
+  }
+
+  return ok;
+}
+
+/** Установка сигналов управления.
+ *
+ *  Запись с SRC_pi означает сброс бит по маске. Если это первая установка
+ *  данного параметра, в него будет записан 0.
+ *  Запись с SRC_vkey значения не 0 означает нажатие на кнопку сброса индикации,
+ *  т.е. сброс индикации команд, неисправностей, предупреждений и их реле.
+ *
+ *  @param[in] params Параметры.
+ *  @param[in] src Источник доступа.
+ *  @param[in/out] value Значение.
+ *  @return true если значение надо записать, иначе false.
+ */
+bool setControl(TParam *params, src_t src, uint32_t &value) {
+  bool ok = false;
+  param_t param = PARAM_vpBtnSA64to33;
+
+  switch(src) {
+    case SRC_pi: {
+      if (params->isValueSet(param)) {
+        uint32_t v = params->getValue(param, src, ok);
+
+        Q_ASSERT(ok);
+        if (ok) {
+          value = v & ~value;
+        }
+      } else {
+        value = 0;
+        ok = true;
+      }
+    } break;
+
+    case SRC_vkey: {
+      if (value > 0) {
+        uint32_t dir = params->getValue(PARAM_dirControl, src, ok);
+        ok = ok && (dir == DIR_CONTROL_local);
+
+        if (ok) {
+          uint32_t v = params->getValue(param, src, ok);
+
+          Q_ASSERT(ok);
+          if (ok) {
+            value = v | (1 << CTRL_resetIndication);
+//            value = value | (1 << CTRL_resetErrors);
+            // TODO добавить сброс неисправностей.
+          }
+        }
+      }
+    } break;
+
+    case SRC_pc: break;
+    case SRC_acs: break;
+    case SRC_MAX: break;
+  }
+
+  return ok;
+}
+
+//
 bool setDirControl(TParam *params, src_t src, uint32_t &value) {
   bool ok = false;
 
@@ -66,184 +301,7 @@ bool setDirControl(TParam *params, src_t src, uint32_t &value) {
   return ok;
 }
 
-/**
- * @brief setBlkComPrmAll
- * @param params
- * @param src
- * @param value
- * @return
- */
-bool setBlkComPrmAll(TParam *params, src_t src, uint32_t &value) {
-  bool ok = false;
-
-  switch(src) {
-    case SRC_pi: {
-      ok = true;
-    } break;
-
-    case SRC_vkey: {
-      if (value > 0) {
-        uint32_t dir = params->getValue(PARAM_dirControl, src, ok);
-        ok = ok && (dir == DIR_CONTROL_local);
-        if (ok) {
-          uint32_t v = params->getValue(PARAM_blkComPrmAll, src, ok);
-          if (ok) {
-            value = (v == ON_OFF_off) ? ON_OFF_on : ON_OFF_off;
-          }
-        }
-      }
-    } break;
-
-    case SRC_pc: break;
-    case SRC_acs: break;
-    case SRC_MAX: break;
-  }
-
-  return ok;
-}
-
-/**
- * @brief setBlkComPrm32to01
- * @param params
- * @param src
- * @param value
- * @return
- */
-bool setBlkComPrm32to01(TParam *params, src_t src, uint32_t &value) {
-  bool ok = false;
-
-  switch(src) {
-    case SRC_pi: {
-      ok = true;
-    } break;
-
-    case SRC_vkey: {
-      if (value > 0) {
-        uint32_t dir = params->getValue(PARAM_dirControl, src, ok);
-        ok = ok && (dir == DIR_CONTROL_local);
-
-        if (ok) {
-          uint32_t blkall = params->getValue(PARAM_blkComPrmAll, src, ok);
-          ok = ok && (blkall == ON_OFF_off);
-        }
-
-        if (ok) {
-          uint32_t v = params->getValue(PARAM_blkComPrm32to01, src, ok);
-          if (ok) {
-            value = v ^ value;
-          }
-        }
-      }
-    } break;
-
-    case SRC_pc: break;
-    case SRC_acs: break;
-    case SRC_MAX: break;
-  }
-
-  return ok;
-}
-
-/**
- * @brief setBlkComPrm64to33
- * @param params
- * @param src
- * @param value
- * @return
- */
-bool setBlkComPrm64to33(TParam *params, src_t src, uint32_t &value) {
-  bool ok = false;
-
-  switch(src) {
-    case SRC_pi: {
-      ok = true;
-    } break;
-
-    case SRC_vkey: {
-      if (value > 0) {
-        uint32_t dir = params->getValue(PARAM_dirControl, src, ok);
-        ok = ok && (dir == DIR_CONTROL_local);
-
-        if (ok) {
-          uint32_t blkall = params->getValue(PARAM_blkComPrmAll, src, ok);
-          ok = ok && (blkall == ON_OFF_off);
-        }
-
-        if (ok) {
-          uint32_t v = params->getValue(PARAM_blkComPrm64to33, src, ok);
-          if (ok) {
-            value = v ^ value;
-          }
-        }
-      }
-    } break;
-
-    case SRC_pc: break;
-    case SRC_acs: break;
-    case SRC_MAX: break;
-  }
-
-  return ok;
-}
-
-/**
- * @brief setBlkComPrm32to01
- * @param params
- * @param src
- * @param value
- * @return
- */
-bool setBtnSA32to01(TParam *params, src_t src, uint32_t &value) {
-  bool ok = false;
-
-  if (src == SRC_vkey) {
-    param_t param = PARAM_vpBtnSA32to01;
-    if (params->isValueSet(param)) {
-      uint32_t tvalue = value ^ params->getValue(param, src, ok);
-
-      if (tvalue > 0) {
-        params->setValue(PARAM_blkComPrm32to01, src, value);
-      }
-    }
-    ok = true;
-  }
-
-  return ok;
-}
-
-/**
- * @brief setBlkComPrm64to33
- * @param params
- * @param src
- * @param value
- * @return
- */
-bool setBtnSA64to33(TParam *params, src_t src, uint32_t &value) {
-  bool ok = false;
-
-
-  if (src == SRC_vkey) {
-    param_t param = PARAM_vpBtnSA64to33;
-    if (params->isValueSet(param)) {
-      uint32_t tvalue = value ^ params->getValue(param, src, ok);
-
-      if (tvalue > 0) {
-        params->setValue(PARAM_blkComPrm64to33, src, value);
-      }
-    }
-    ok = true;
-  }
-
-  return ok;
-}
-
-/**
- * @brief setVpBtnSAnSbSac
- * @param params
- * @param src
- * @param value
- * @return
- */
+//
 bool
 setVpBtnSAnSbSac(TParam *params, src_t src, uint32_t &value) {
   bool ok = false;
@@ -265,7 +323,8 @@ setVpBtnSAnSbSac(TParam *params, src_t src, uint32_t &value) {
         }
 
         if (tvalue & TParam::VP_BTN_CONTROL_sb) {
-          // TODO сброс!
+          params->setValue(PARAM_control, src,
+                           value & TParam::VP_BTN_CONTROL_sb);
         }
 
         if (tvalue & TParam::VP_BTN_CONTROL_san) {
@@ -282,7 +341,14 @@ setVpBtnSAnSbSac(TParam *params, src_t src, uint32_t &value) {
   return ok;
 }
 
+//
 TParam::paramFields_t TParam::params[PARAM_MAX] = {
+  //
+  {param : PARAM_control,
+   isValue : false, rValue : 0, wValue : 0,
+   set : setControl, get : getControl},
+  //
+  // Параметры панели виртуальных ключей
   //
   {param : PARAM_dirControl,
    isValue : false, rValue : 0, wValue : 0,
@@ -327,7 +393,11 @@ TParam::paramFields_t TParam::params[PARAM_MAX] = {
    set : setBtnSA64to33, get : nullptr},
 };
 
-
+//
+TParam::TParam() {
+  // TODO Подумать над инициализацией параметров которые не надо считывать.
+  setValue(PARAM_control, SRC_pi, 0);
+}
 
 //
 TParam*
@@ -373,10 +443,10 @@ TParam::getValue(param_t param, src_t src, bool &ok) {
     }
   }
 
-
   return value;
 }
 
+//
 bool
 TParam::setValue(param_t param, src_t src, uint32_t value) {
   bool ok = false;
