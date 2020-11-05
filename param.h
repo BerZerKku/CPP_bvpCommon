@@ -103,9 +103,9 @@ class TParam {
     uint32_t rValue;  ///< Считанное значение.
     uint32_t wValue;  ///< Значение для записи.
     ///< Доп. обработка при установке значения параметра.
-    bool (*set) (BVP::TParam*, BVP::src_t, uint32_t&);
+    bool (*set) (param_t, BVP::src_t, uint32_t&);
     ///< Доп. обработка при чтении значения параметра.
-    bool (*get) (BVP::TParam*, BVP::src_t, uint32_t&);
+    bool (*get) (param_t, BVP::src_t, uint32_t&);
   };
 
   enum vpBtnControl_t {
@@ -115,7 +115,7 @@ class TParam {
     VP_BTN_CONTROL_san  = 0x0000FF00
   };
 
-public:
+ public:
   /// Конструктор.
   TParam();
   /// Конструктор копирования запрещен.
@@ -124,9 +124,9 @@ public:
   void operator=(const TParam&) = delete;
 
   /** Возвращает экземпляр класса параметров.
-     *
-     *  @return Класс параметров.
-     */
+   *
+   *  @return Класс параметров.
+   */
   static TParam* getInstance();
 
   /** Проверяет наличие установленного значения параметра.
@@ -187,23 +187,21 @@ public:
    */
   bool setValue(param_t param, src_t src, uint32_t value);
 
-private:
+ private:
   /// Значения параметров.
   static paramFields_t params[PARAM_MAX];
 
-  friend bool getBlkComPrm(TParam *params, src_t src, uint32_t &value);
-  friend bool getControl(TParam *params, src_t src, uint32_t &value);
-  friend bool getError(TParam *params, src_t src, uint32_t &value);
-  friend bool getWarning(TParam *params, src_t src, uint32_t &value);
+  friend bool getBlkComPrm(param_t param, src_t src, uint32_t &value);
+  friend bool getControl(param_t param, src_t src, uint32_t &value);
 
-  friend bool setBlkComPrmAll(TParam *params, src_t src, uint32_t &value);
-  friend bool setBlkComPrm32to01(TParam *params, src_t src, uint32_t &value);
-  friend bool setBlkComPrm64to33(TParam *params, src_t src, uint32_t &value);
-  friend bool setBtnSA32to01(TParam *params, src_t src, uint32_t &value);
-  friend bool setBtnSA64to33(TParam *params, src_t src, uint32_t &value);
-  friend bool setControl(TParam *params, src_t src, uint32_t &value);
-  friend bool setDirControl(TParam *params, src_t src, uint32_t &value);
-  friend bool setVpBtnSAnSbSac(TParam *params, src_t src, uint32_t &value);
+  friend bool setBlkComPrmAll(param_t param, src_t src, uint32_t &value);
+  friend bool setBlkComPrm(param_t param, src_t src, uint32_t &value);
+  friend bool setBtnSA(param_t param, src_t src, uint32_t &value);
+  friend bool setControl(param_t param, src_t src, uint32_t &value);
+  friend bool setError(param_t param, src_t src, uint32_t &value);
+  friend bool setDirControl(param_t param, src_t src, uint32_t &value);
+  friend bool setVpBtnSAnSbSac(param_t param, src_t src, uint32_t &value);
+  friend bool setWarning(param_t param, src_t src, uint32_t &value);
 
 
   void setLocalValue(param_t param, uint32_t value);

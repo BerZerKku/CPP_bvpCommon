@@ -7,13 +7,16 @@ TParam TParam::mParam;
 
 //
 bool
-getBlkComPrm(TParam *params, src_t src, uint32_t &value) {
+getBlkComPrm(param_t param, src_t src, uint32_t &value) {
   bool ok = false;
+  TParam *params = TParam::getInstance();
+
+  UNUSED(param);
 
   if (src == SRC_vkey) {
     uint32_t blkall = params->getValue(PARAM_blkComPrmAll, src, ok);
 
-    if ((ok) && (blkall != ON_OFF_off)) {
+    if (ok && (blkall != ON_OFF_off)) {
         value = 0xFFFFFFFF;
     }
   }
@@ -33,10 +36,12 @@ getBlkComPrm(TParam *params, src_t src, uint32_t &value) {
  *  @return true если значение можно считать, иначе false.
  */
 bool
-getControl(TParam *params, src_t src, uint32_t &value) {
+getControl(param_t param, src_t src, uint32_t &value) {
   bool ok = false;
+  TParam *params = TParam::getInstance();
 
-  UNUSED(params);
+  UNUSED(param);
+  Q_ASSERT(param == PARAM_control);
 
   switch(src) {
     case SRC_pi: {
@@ -45,7 +50,7 @@ getControl(TParam *params, src_t src, uint32_t &value) {
         while((value & (1 << i)) == 0) {
           i++;
         }
-        params->setLocalValue(PARAM_control, value & ~(1 << i));
+        params->setLocalValue(param, value & ~(1 << i));
         value = i + CTRL_MIN;
       }
       ok = true;
@@ -64,66 +69,12 @@ getControl(TParam *params, src_t src, uint32_t &value) {
 
 //
 bool
-getError(TParam *params, src_t src, uint32_t &value) {
+setBlkComPrmAll(param_t param, src_t src, uint32_t &value) {
   bool ok = false;
+  TParam *params = TParam::getInstance();
 
-  // TODO Добавить фильтр по наличию текущих устройств (прм, прд, защ)
-  // FIXME Перенести в функцию установки неисправностей!!!
-
-  value = params->getValue(PARAM_glbError, src, ok);
-
-  if (ok) {
-    value |= params->getValue(PARAM_defError, src, ok);
-  }
-
-  if (ok) {
-    value |= params->getValue(PARAM_prmError, src, ok);
-  }
-
-  if (ok) {
-    value |= params->getValue(PARAM_prdError, src, ok);
-  }
-
-  if (ok) {
-    params->setLocalValue(PARAM_error, value);
-  }
-
-  return ok;
-}
-
-//
-bool
-getWarning(TParam *params, src_t src, uint32_t &value) {
-  bool ok = false;
-
-  value = params->getValue(PARAM_glbWarning, src, ok);
-
-  // TODO Добавить фильтр по наличию текущих устройств (прм, прд, защ)
-  // FIXME Перенести в функцию установки предупреждений!!!
-
-  if (ok) {
-    value |= params->getValue(PARAM_defWarning, src, ok);
-  }
-
-  if (ok) {
-    value |= params->getValue(PARAM_prmWarning, src, ok);
-  }
-
-  if (ok) {
-    value |= params->getValue(PARAM_prdWarning, src, ok);
-  }
-
-  if (ok) {
-    params->setLocalValue(PARAM_warning, value);
-  }
-
-  return ok;
-}
-
-//
-bool
-setBlkComPrmAll(TParam *params, src_t src, uint32_t &value) {
-  bool ok = false;
+  UNUSED(param);
+  Q_ASSERT(param == PARAM_blkComPrmAll);
 
   switch(src) {
     case SRC_pi: {
@@ -151,10 +102,25 @@ setBlkComPrmAll(TParam *params, src_t src, uint32_t &value) {
   return ok;
 }
 
-//
+/** Установка блокированных команд приемника.
+ *
+ *  Запись с SRC_pi идет без изменений.
+ *  Запись с SRC_vkey идет переключением текущих состояний блокировки для
+ *  команд по маске, т.е. тех где бит равен 1. При этом состояние меняется
+ *  только в случае локального управления и отсутствии общей блокировки команд
+ *  приемника.
+ *
+ *  @param[in] param Параметр.
+ *  @param[in] src Источник доступа.
+ *  @param[in/out] value Значение.
+ *  @return true если значение надо записать, иначе false.
+ */
 bool
-setBlkComPrm32to01(TParam *params, src_t src, uint32_t &value) {
+setBlkComPrm(param_t param, src_t src, uint32_t &value) {
   bool ok = false;
+  TParam *params = TParam::getInstance();
+
+  Q_ASSERT((param == PARAM_blkComPrm32to01) || (param == PARAM_blkComPrm64to33));
 
   switch(src) {
     case SRC_pi: {
@@ -172,7 +138,7 @@ setBlkComPrm32to01(TParam *params, src_t src, uint32_t &value) {
         }
 
         if (ok) {
-          uint32_t v = params->getValue(PARAM_blkComPrm32to01, src, ok);
+          uint32_t v = params->getValue(param, src, ok);
           if (ok) {
             value = v ^ value;
           }
@@ -190,77 +156,28 @@ setBlkComPrm32to01(TParam *params, src_t src, uint32_t &value) {
 
 //
 bool
-setBlkComPrm64to33(TParam *params, src_t src, uint32_t &value) {
+setBtnSA(param_t param, src_t src, uint32_t &value) {
   bool ok = false;
+  TParam *params = TParam::getInstance();
 
-  switch(src) {
-    case SRC_pi: {
-      ok = true;
-    } break;
-
-    case SRC_vkey: {
-      if (value > 0) {
-        uint32_t dir = params->getValue(PARAM_dirControl, src, ok);
-        ok = ok && (dir == DIR_CONTROL_local);
-
-        if (ok) {
-          uint32_t blkall = params->getValue(PARAM_blkComPrmAll, src, ok);
-          ok = ok && (blkall == ON_OFF_off);
-        }
-
-        if (ok) {
-          uint32_t v = params->getValue(PARAM_blkComPrm64to33, src, ok);
-          if (ok) {
-            value = v ^ value;
-          }
-        }
-      }
-    } break;
-
-    case SRC_pc: break;
-    case SRC_acs: break;
-    case SRC_MAX: break;
-  }
-
-  return ok;
-}
-
-//
-bool
-setBtnSA32to01(TParam *params, src_t src, uint32_t &value) {
-  bool ok = false;
+  Q_ASSERT((param == PARAM_vpBtnSA32to01) || (param == PARAM_vpBtnSA64to33));
 
   if (src == SRC_vkey) {
-    param_t param = PARAM_vpBtnSA32to01;
-    if (params->isValueSet(param)) {
+    if (param == PARAM_vpBtnSA32to01) {
+      param = PARAM_blkComPrm32to01;
+    } else if (param == PARAM_blkComPrm64to33) {
+      param = PARAM_blkComPrm64to33;
+    } else {
+      param = PARAM_MAX;
+    }
+
+    if ((param != PARAM_MAX) && params->isValueSet(param)) {
       uint32_t tvalue = value ^ params->getValue(param, src, ok);
 
       if (tvalue > 0) {
-        params->setValue(PARAM_blkComPrm32to01, src, value);
+        params->setValue(param, src, value);
       }
     }
-    ok = true;
-  }
-
-  return ok;
-}
-
-//
-bool
-setBtnSA64to33(TParam *params, src_t src, uint32_t &value) {
-  bool ok = false;
-
-
-  if (src == SRC_vkey) {
-    param_t param = PARAM_vpBtnSA64to33;
-    if (params->isValueSet(param)) {
-      uint32_t tvalue = value ^ params->getValue(param, src, ok);
-
-      if (tvalue > 0) {
-        params->setValue(PARAM_blkComPrm64to33, src, value);
-      }
-    }
-
     ok = true;
   }
 
@@ -274,14 +191,14 @@ setBtnSA64to33(TParam *params, src_t src, uint32_t &value) {
  *  Запись с SRC_vkey значения не 0 означает нажатие на кнопку сброса индикации,
  *  т.е. сброс индикации команд, неисправностей, предупреждений и их реле.
  *
- *  @param[in] params Параметры.
+ *  @param[in] param Параметр.
  *  @param[in] src Источник доступа.
  *  @param[in/out] value Значение.
  *  @return true если значение надо записать, иначе false.
  */
-bool setControl(TParam *params, src_t src, uint32_t &value) {
+bool setControl(param_t param, src_t src, uint32_t &value) {
   bool ok = false;
-  param_t param = PARAM_vpBtnSA64to33;
+  TParam *params = TParam::getInstance();
 
   switch(src) {
     case SRC_pi: {
@@ -325,8 +242,41 @@ bool setControl(TParam *params, src_t src, uint32_t &value) {
 }
 
 //
-bool setDirControl(TParam *params, src_t src, uint32_t &value) {
+bool
+setError(param_t param, src_t src, uint32_t &value) {
+  bool ok = true;
+  TParam *params = TParam::getInstance();
+  uint32_t v = value;
+
+  // TODO Добавить фильтр по наличию текущих устройств (прм, прд, защ)
+
+  if (ok && (param != PARAM_glbError)) {
+    v |= params->getValue(PARAM_glbError, src, ok);
+  }
+
+  if (ok && (param != PARAM_defError)) {
+    v |= params->getValue(PARAM_defError, src, ok);
+  }
+
+  if (ok && (param != PARAM_prmError)) {
+    v |= params->getValue(PARAM_prmError, src, ok);
+  }
+
+  if (ok && (param != PARAM_prdError)) {
+    v |= params->getValue(PARAM_prdError, src, ok);
+  }
+
+  if (ok) {
+    params->setLocalValue(PARAM_error, v);
+  }
+
+  return ok;
+}
+
+//
+bool setDirControl(param_t param, src_t src, uint32_t &value) {
   bool ok = false;
+  TParam *params = TParam::getInstance();
 
   switch(src) {
     case SRC_pi: {
@@ -335,7 +285,7 @@ bool setDirControl(TParam *params, src_t src, uint32_t &value) {
 
     case SRC_vkey: {
       if (value > 0) {
-        uint32_t d = params->getValue(PARAM_dirControl, src, ok);
+        uint32_t d = params->getValue(param, src, ok);
         if (ok) {
           dirControl_t dir = DIR_CONTROL_local;
           switch(static_cast<dirControl_t> (d)) {
@@ -362,8 +312,11 @@ bool setDirControl(TParam *params, src_t src, uint32_t &value) {
 
 //
 bool
-setVpBtnSAnSbSac(TParam *params, src_t src, uint32_t &value) {
+setVpBtnSAnSbSac(param_t param, src_t src, uint32_t &value) {
   bool ok = false;
+  TParam *params = TParam::getInstance();
+
+  UNUSED(param);
 
   if (src == SRC_vkey) {
     param_t param = PARAM_vpBtnSAnSbSac;
@@ -401,6 +354,38 @@ setVpBtnSAnSbSac(TParam *params, src_t src, uint32_t &value) {
 }
 
 //
+bool
+setWarning(param_t param, src_t src, uint32_t &value) {
+  bool ok = true;
+  TParam *params = TParam::getInstance();
+  uint32_t v = value;
+
+  // TODO Добавить фильтр по наличию текущих устройств (прм, прд, защ)
+
+  if (ok && (param != PARAM_glbWarning)) {
+    v |= params->getValue(PARAM_glbWarning, src, ok);
+  }
+
+  if (ok && (param != PARAM_defWarning)) {
+    value |= params->getValue(PARAM_defWarning, src, ok);
+  }
+
+  if (ok && (param != PARAM_prmWarning)) {
+    v |= params->getValue(PARAM_prmWarning, src, ok);
+  }
+
+  if (ok && (param != PARAM_prdWarning)) {
+    v |= params->getValue(PARAM_prdWarning, src, ok);
+  }
+
+  if (ok) {
+    params->setLocalValue(PARAM_warning, v);
+  }
+
+  return ok;
+}
+
+//
 TParam::paramFields_t TParam::params[PARAM_MAX] = {
   //
   {param : PARAM_control,
@@ -411,34 +396,34 @@ TParam::paramFields_t TParam::params[PARAM_MAX] = {
   //
   {param : PARAM_error,
    isValue : false, rValue : 0, wValue : 0,
-   set : nullptr, get : getError},
+   set : nullptr, get : nullptr},
   {param : PARAM_warning,
    isValue : false, rValue : 0, wValue : 0,
-   set : nullptr, get : getWarning},
+   set : nullptr, get : nullptr},
   {param : PARAM_defError,
    isValue : false, rValue : 0, wValue : 0,
-   set : nullptr, get : nullptr},
+   set : setError, get : nullptr},
   {param : PARAM_defWarning,
    isValue : false, rValue : 0, wValue : 0,
-   set : nullptr, get : nullptr},
+   set : setWarning, get : nullptr},
   {param : PARAM_prmError,
    isValue : false, rValue : 0, wValue : 0,
-   set : nullptr, get : nullptr},
+   set : setError, get : nullptr},
   {param : PARAM_prmWarning,
    isValue : false, rValue : 0, wValue : 0,
-   set : nullptr, get : nullptr},
+   set : setWarning, get : nullptr},
   {param : PARAM_prdError,
    isValue : false, rValue : 0, wValue : 0,
-   set : nullptr, get : nullptr},
+   set : setError, get : nullptr},
   {param : PARAM_prdWarning,
    isValue : false, rValue : 0, wValue : 0,
-   set : nullptr, get : nullptr},
+   set : setWarning, get : nullptr},
   {param : PARAM_glbError,
    isValue : false, rValue : 0, wValue : 0,
-   set : nullptr, get : nullptr},
+   set : setError, get : nullptr},
   {param : PARAM_glbWarning,
    isValue : false, rValue : 0, wValue : 0,
-   set : nullptr, get : nullptr},
+   set : setWarning, get : nullptr},
   {param : PARAM_defRemoteError,
    isValue : false, rValue : 0, wValue : 0,
    set : nullptr, get : nullptr},
@@ -468,11 +453,11 @@ TParam::paramFields_t TParam::params[PARAM_MAX] = {
   //
   {param : PARAM_blkComPrm32to01,
    isValue : false, rValue : 0, wValue : 0,
-   set : setBlkComPrm32to01, get : getBlkComPrm},
+   set : setBlkComPrm, get : getBlkComPrm},
   //
   {param : PARAM_blkComPrm64to33,
    isValue : false, rValue : 0, wValue : 0,
-   set : setBlkComPrm64to33, get : getBlkComPrm},
+   set : setBlkComPrm, get : getBlkComPrm},
   //
   {param : PARAM_blkComPrd32to01,
    isValue : false, rValue : 0, wValue : 0,
@@ -490,11 +475,11 @@ TParam::paramFields_t TParam::params[PARAM_MAX] = {
   //
   {param : PARAM_vpBtnSA32to01,
    isValue : false, rValue : 0, wValue : 0,
-   set : setBtnSA32to01, get : nullptr},
+   set : setBtnSA, get : nullptr},
   //
   {param : PARAM_vpBtnSA64to33,
    isValue : false, rValue : 0, wValue : 0,
-   set : setBtnSA64to33, get : nullptr},
+   set : setBtnSA, get : nullptr},
 };
 
 //
@@ -552,7 +537,7 @@ TParam::getValue(param_t param, src_t src, bool &ok) {
     value = params[param].rValue;
 
     if (params[param].get != nullptr) {
-      ok = params[param].get(this, src, value);
+      ok = params[param].get(param, src, value);
     }
   }
 
@@ -586,7 +571,7 @@ TParam::setValue(param_t param, src_t src, uint32_t value) {
       ok = true;
 
       if (params[param].set != nullptr) {
-        ok = params[param].set(this, src, value);
+        ok = params[param].set(param, src, value);
       }
 
       if (ok) {
