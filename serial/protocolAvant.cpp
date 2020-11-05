@@ -206,11 +206,9 @@ TProtocolAvant::vTick() {
     mTimeUs += mTimeTickUs;
   }
 
-  if (mState == STATE_waitForReply) {
-    if (mTimeUs >= kMaxTimeToResponseUs) {
-      mState = STATE_idle;
-      incLostMessageCounter();
-    }
+  if (mTimeUs >= kMaxTimeToResponseUs) {
+    mState = STATE_idle;
+    incLostMessageCounter();
   }
 }
 
@@ -251,7 +249,7 @@ TProtocolAvant::addByte(uint8_t byte, uint16_t nbyte) {
   Q_ASSERT(nbyte < (mSize - kMinLenFrame));
 
   if (mBuf[POS_DATA_LEN]< nbyte) {
-    mBuf[POS_DATA_LEN] = nbyte + 1;
+    mBuf[POS_DATA_LEN] = static_cast<uint8_t> (nbyte + 1);
   }
 
   mBuf[POS_DATA + nbyte] = byte;

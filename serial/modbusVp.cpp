@@ -91,6 +91,12 @@ TModbusVp::read() {
     uint16_t len = mLen;
     uint16_t position = 0;
 
+//    QString message;
+//    for(uint8_t i = 0; i < len; i++) {
+//      message += QString("%1 ").arg(mBuf[i], 2, 16, QLatin1Char('0'));
+//    }
+//    qDebug() << message;
+
     position += checkReadMsg(&mBuf[position], len, ok);
 
     if (ok) {
@@ -269,23 +275,19 @@ TModbusVp::vTick() {
     return;
   }
 
-  // TODO Добавить сброс протокола, например из waitForSend и др.
-
   if (mTimeUs < kMaxTimeToResponseUs) {
     mTimeUs += mTimeTickUs;
   }
 
+  if (mTimeUs >=  kMaxTimeToResponseUs) {
+    mState = STATE_idle;
+    incLostMessageCounter();
+  }
+
   if (mState == STATE_waitForReply) {
-    if (mPos == 0) {
-      if (mTimeUs >=  kMaxTimeToResponseUs) {
-        mState = STATE_idle;
-        incLostMessageCounter();
-      }
-    } else {
-      if (mTimeUs > mTimeToCompleteUs) {
-        mLen = mPos;
-        mState = STATE_procReply;
-      }
+    if ((mPos != 0) && (mTimeUs > mTimeToCompleteUs)) {
+      mLen = mPos;
+      mState = STATE_procReply;
     }
   }
 

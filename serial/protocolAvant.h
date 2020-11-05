@@ -29,7 +29,7 @@ class TProtocolAvant : public TSerialProtocol {
   };
 
   /// Максимальное время для получения ответа (в данной реализации), мкс.
-  const uint32_t kMaxTimeToResponseUs = 200000UL;
+  const uint32_t kMaxTimeToResponseUs = 300000UL;
   /// Максимальное количество сообщений без ответа до потери связи.
   const uint8_t kMaxLostMessage = 5;
   /// Минимальная длина кадра.
@@ -64,12 +64,9 @@ protected:
     POS_DATA            ///< Первый байт данных.
   };
 
-  /// Источник доступа протокола.
-  const src_t mSrc;
-  /// Текущее состояние.
-  state_t mState;
-  /// Количество сообщений без ответа.
-  uint8_t cntLostMessage;
+  const src_t mSrc;       ///< Источник доступа протокола.
+  state_t mState;         ///< Текущее состояние.
+  uint8_t cntLostMessage; ///< Количество сообщений без ответа.
 
   /// Увеличивает счетчик ошибок без ответа.
   void incLostMessageCounter();

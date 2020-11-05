@@ -9,11 +9,26 @@ namespace BVP {
 
 enum param_t {
   //
-  PARAM_control,          ///< Сигналы управления.
+  PARAM_control = 0,          ///< Сигналы управления.
+  // Текущее состояние
+  PARAM_error,                ///< Флаг наличия неисправности.
+  PARAM_warning,              ///< Флаг наличия предупреждения.
+  PARAM_defError,             ///< Неисправности Защиты.
+  PARAM_defWarning,           ///< Предупреждения Защиты.
+  PARAM_prmError,             ///< Неисправности Приемника.
+  PARAM_prmWarning,           ///< Педупреждения Приемника.
+  PARAM_prdError,             ///< Неисправности Передатчика.
+  PARAM_prdWarning,           ///< Педупреждения Передатчика.
+  PARAM_glbError,             ///< Неисправности Общие.
+  PARAM_glbWarning,           ///< Педупреждения Общие.
+  PARAM_defRemoteError,
+  PARAM_prmRemoteError,
+  PARAM_prdRemoteError,
+  PARAM_glbRemoteError,
   // Параметры панели виртуальных ключей
   PARAM_dirControl,       ///< Управление ключами (SAC2).
   PARAM_blkComPrmAll,     ///< Блокировка всех выходов приемника (SAC1).
-  PARAM_blkComPrmDir,     ///< Блокировка направляений выхода приемника (SAnn.x)
+  PARAM_blkComPrmDir,     ///< Блокировка направлений выхода приемника (SAnn.x)
   PARAM_blkComPrm32to01,  ///< Блокированные команды приемника с 1 по 32.
   PARAM_blkComPrm64to33,  ///< Блокированные команды приемника с 33 по 64.
   PARAM_blkComPrd32to01,  ///< Блокированные команды передатчика с 1 по 32.
@@ -56,8 +71,8 @@ enum dirControl_t {
 };
 
 ///
-enum onOff_t {
-  ON_OFF_off = 0,
+enum switchOff_t {
+  ON_OFF_off = 0, ///<
   ON_OFF_on,
   //
   ON_OFF_MAX
@@ -81,12 +96,15 @@ class TParam {
   /// Параметры.
   static TParam mParam;
 
+  /// Поля настроек параметра.
   struct paramFields_t {
-    param_t param;
-    bool isValue;
-    uint32_t rValue;
-    uint32_t wValue;
+    param_t param;    ///< Параметр
+    bool isValue;     ///< Флаг наличия считанного значения.
+    uint32_t rValue;  ///< Считанное значение.
+    uint32_t wValue;  ///< Значение для записи.
+    ///< Доп. обработка при установке значения параметра.
     bool (*set) (BVP::TParam*, BVP::src_t, uint32_t&);
+    ///< Доп. обработка при чтении значения параметра.
     bool (*get) (BVP::TParam*, BVP::src_t, uint32_t&);
   };
 
@@ -146,6 +164,20 @@ public:
    */
   uint32_t getValue(param_t param, src_t src, bool &ok);
 
+  /** Возвращает считанное значение параметра.
+   *
+   *  @param[in] param Параметр.
+   *  @return Значение параметра.
+   */
+  uint32_t getValueR(param_t param);
+
+  /** Возвраащет значение параметра для записи.
+   *
+   *  @param[in] param Параметр.
+   *  @return  Значение параметра.
+   */
+  uint32_t getValueW(param_t param);
+
   /** Устанавливает значение параметра.
    *
    *  @param[in] param Параметр.
@@ -161,6 +193,8 @@ private:
 
   friend bool getBlkComPrm(TParam *params, src_t src, uint32_t &value);
   friend bool getControl(TParam *params, src_t src, uint32_t &value);
+  friend bool getError(TParam *params, src_t src, uint32_t &value);
+  friend bool getWarning(TParam *params, src_t src, uint32_t &value);
 
   friend bool setBlkComPrmAll(TParam *params, src_t src, uint32_t &value);
   friend bool setBlkComPrm32to01(TParam *params, src_t src, uint32_t &value);
@@ -170,6 +204,7 @@ private:
   friend bool setControl(TParam *params, src_t src, uint32_t &value);
   friend bool setDirControl(TParam *params, src_t src, uint32_t &value);
   friend bool setVpBtnSAnSbSac(TParam *params, src_t src, uint32_t &value);
+
 
   void setLocalValue(param_t param, uint32_t value);
 };

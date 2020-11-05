@@ -13,6 +13,7 @@ BVP::TAvantPi::vWriteAvant() {
   bool ok = false;
   uint32_t value = 0;
 
+  // Сигналы управления
   value = mParam->getValue(PARAM_control, mSrc, ok);
   ok = ok && (value > 0);
   if (ok) {
@@ -20,7 +21,7 @@ BVP::TAvantPi::vWriteAvant() {
   }
 
   if (!ok) {
-    setCom(0x32);
+    setCom(0x31);
     ok = true;
   }
 
@@ -32,8 +33,54 @@ bool
 TAvantPi::vReadAvant() {
   bool ok = false;
 
-  if (mBuf[POS_COM] == 0x32) {
+  if (mBuf[POS_COM] == 0x31) {
+    uint16_t pos = POS_DATA;
+    uint32_t value = 0;
 
+    if (mBuf[POS_DATA_LEN] >= 20) {
+      value = mBuf[pos++];
+      value = (value << 8) + mBuf[pos++];
+      mParam->setValue(PARAM_defError, mSrc, value);
+      value = mBuf[pos++];
+      value = (value << 8) + mBuf[pos++];
+      mParam->setValue(PARAM_defWarning, mSrc, value);
+      value = mBuf[pos++];
+      value = (value << 8) + mBuf[pos++];
+      mParam->setValue(PARAM_prmError, mSrc, value);
+      value = mBuf[pos++];
+      value = (value << 8) + mBuf[pos++];
+      mParam->setValue(PARAM_prmWarning, mSrc, value);
+      value = mBuf[pos++];
+      value = (value << 8) + mBuf[pos++];
+      mParam->setValue(PARAM_prdError, mSrc, value);
+      value = mBuf[pos++];
+      value = (value << 8) + mBuf[pos++];
+      mParam->setValue(PARAM_prdWarning, mSrc, value);
+      value = mBuf[pos++];
+      value = (value << 8) + mBuf[pos++];
+      mParam->setValue(PARAM_glbError, mSrc, value);
+      value = mBuf[pos++];
+      value = (value << 8) + mBuf[pos++];
+      mParam->setValue(PARAM_glbWarning, mSrc, value);
+      pos += 4;
+      Q_ASSERT(pos == (POS_DATA + 20));
+    }
+
+    if (mBuf[POS_DATA_LEN] >= 28) {
+      value = mBuf[pos++];
+      value = (value << 8) + mBuf[pos++];
+      mParam->setValue(PARAM_defRemoteError, mSrc, value);
+      value = mBuf[pos++];
+      value = (value << 8) + mBuf[pos++];
+      mParam->setValue(PARAM_prmRemoteError, mSrc, value);
+      value = mBuf[pos++];
+      value = (value << 8) + mBuf[pos++];
+      mParam->setValue(PARAM_prdRemoteError, mSrc, value);
+      value = mBuf[pos++];
+      value = (value << 8) + mBuf[pos++];
+      mParam->setValue(PARAM_glbRemoteError, mSrc, value);
+      Q_ASSERT(pos == (POS_DATA + 28));
+    }
   }
 
   return ok;
@@ -52,6 +99,7 @@ TAvantPi::fillComControl(uint32_t value) {
   if (value < CTRL_MAX) {
 
     switch(value) {
+
       case CTRL_resetErrors: {
         setCom(COM_AVANT_control);
         addByte(COM_CONTROL_BYTES_selfReset);
@@ -65,8 +113,6 @@ TAvantPi::fillComControl(uint32_t value) {
 
     }
   }
-
-  qDebug() << "ok = " << ok;
 
   return ok;
 }

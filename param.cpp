@@ -24,7 +24,7 @@ getBlkComPrm(TParam *params, src_t src, uint32_t &value) {
 /** Считывание сигналов управления.
  *
  *  Для SRC_pi возвращается самый приоритетный на данный момент сигнал
- *  управления ctrl_t.
+ *  управления ctrl_t. После считывания данный сигнал будет сброшен.
  *  Для SRC_vkey возвращается текущее состояние сигналов управления.
  *
  *  @param[in] params Параметры.
@@ -45,6 +45,7 @@ getControl(TParam *params, src_t src, uint32_t &value) {
         while((value & (1 << i)) == 0) {
           i++;
         }
+        params->setLocalValue(PARAM_control, value & ~(1 << i));
         value = i + CTRL_MIN;
       }
       ok = true;
@@ -56,6 +57,64 @@ getControl(TParam *params, src_t src, uint32_t &value) {
     case SRC_pc: break;
     case SRC_acs: break;
     case SRC_MAX: break;
+  }
+
+  return ok;
+}
+
+//
+bool
+getError(TParam *params, src_t src, uint32_t &value) {
+  bool ok = false;
+
+  // TODO Добавить фильтр по наличию текущих устройств (прм, прд, защ)
+  // FIXME Перенести в функцию установки неисправностей!!!
+
+  value = params->getValue(PARAM_glbError, src, ok);
+
+  if (ok) {
+    value |= params->getValue(PARAM_defError, src, ok);
+  }
+
+  if (ok) {
+    value |= params->getValue(PARAM_prmError, src, ok);
+  }
+
+  if (ok) {
+    value |= params->getValue(PARAM_prdError, src, ok);
+  }
+
+  if (ok) {
+    params->setLocalValue(PARAM_error, value);
+  }
+
+  return ok;
+}
+
+//
+bool
+getWarning(TParam *params, src_t src, uint32_t &value) {
+  bool ok = false;
+
+  value = params->getValue(PARAM_glbWarning, src, ok);
+
+  // TODO Добавить фильтр по наличию текущих устройств (прм, прд, защ)
+  // FIXME Перенести в функцию установки предупреждений!!!
+
+  if (ok) {
+    value |= params->getValue(PARAM_defWarning, src, ok);
+  }
+
+  if (ok) {
+    value |= params->getValue(PARAM_prmWarning, src, ok);
+  }
+
+  if (ok) {
+    value |= params->getValue(PARAM_prdWarning, src, ok);
+  }
+
+  if (ok) {
+    params->setLocalValue(PARAM_warning, value);
   }
 
   return ok;
@@ -249,7 +308,7 @@ bool setControl(TParam *params, src_t src, uint32_t &value) {
 
           Q_ASSERT(ok);
           if (ok) {
-            value = v | (1 << CTRL_resetIndication);
+            value = v | (1 << (CTRL_resetIndication - CTRL_MIN));
 //            value = value | (1 << CTRL_resetErrors);
             // TODO добавить сброс неисправностей.
           }
@@ -329,7 +388,7 @@ setVpBtnSAnSbSac(TParam *params, src_t src, uint32_t &value) {
 
         if (tvalue & TParam::VP_BTN_CONTROL_san) {
           static_assert(TParam::VP_BTN_CONTROL_san == 0x0000FF00,
-                        "Wrong position buttons SAnn");
+                        "Wrong position buttons SAnn.x");
           params->setValue(PARAM_blkComPrmDir, src,
                            (value & TParam::VP_BTN_CONTROL_san) >> 8);
         }
@@ -347,6 +406,51 @@ TParam::paramFields_t TParam::params[PARAM_MAX] = {
   {param : PARAM_control,
    isValue : false, rValue : 0, wValue : 0,
    set : setControl, get : getControl},
+  //
+  // Текущее состояние
+  //
+  {param : PARAM_error,
+   isValue : false, rValue : 0, wValue : 0,
+   set : nullptr, get : getError},
+  {param : PARAM_warning,
+   isValue : false, rValue : 0, wValue : 0,
+   set : nullptr, get : getWarning},
+  {param : PARAM_defError,
+   isValue : false, rValue : 0, wValue : 0,
+   set : nullptr, get : nullptr},
+  {param : PARAM_defWarning,
+   isValue : false, rValue : 0, wValue : 0,
+   set : nullptr, get : nullptr},
+  {param : PARAM_prmError,
+   isValue : false, rValue : 0, wValue : 0,
+   set : nullptr, get : nullptr},
+  {param : PARAM_prmWarning,
+   isValue : false, rValue : 0, wValue : 0,
+   set : nullptr, get : nullptr},
+  {param : PARAM_prdError,
+   isValue : false, rValue : 0, wValue : 0,
+   set : nullptr, get : nullptr},
+  {param : PARAM_prdWarning,
+   isValue : false, rValue : 0, wValue : 0,
+   set : nullptr, get : nullptr},
+  {param : PARAM_glbError,
+   isValue : false, rValue : 0, wValue : 0,
+   set : nullptr, get : nullptr},
+  {param : PARAM_glbWarning,
+   isValue : false, rValue : 0, wValue : 0,
+   set : nullptr, get : nullptr},
+  {param : PARAM_defRemoteError,
+   isValue : false, rValue : 0, wValue : 0,
+   set : nullptr, get : nullptr},
+  {param : PARAM_prmRemoteError,
+   isValue : false, rValue : 0, wValue : 0,
+   set : nullptr, get : nullptr},
+  {param : PARAM_prdRemoteError,
+   isValue : false, rValue : 0, wValue : 0,
+   set : nullptr, get : nullptr},
+  {param : PARAM_glbRemoteError,
+   isValue : false, rValue : 0, wValue : 0,
+   set : nullptr, get : nullptr},
   //
   // Параметры панели виртуальных ключей
   //
@@ -395,8 +499,15 @@ TParam::paramFields_t TParam::params[PARAM_MAX] = {
 
 //
 TParam::TParam() {
+  for(uint16_t i = 0; i < PARAM_MAX; i++) {
+//    qDebug() << "params[" << i << "].param = " << params[i].param;
+    Q_ASSERT(params[i].param == static_cast<param_t> (i));
+  }
+
   // TODO Подумать над инициализацией параметров которые не надо считывать.
-  setValue(PARAM_control, SRC_pi, 0);
+  setLocalValue(PARAM_control, 0);
+  setLocalValue(PARAM_error, 1);
+  setLocalValue(PARAM_warning, 1);
 }
 
 //
@@ -427,6 +538,7 @@ TParam::isAccessSet(param_t param, src_t src) const {
   return true;
 }
 
+//
 uint32_t
 TParam::getValue(param_t param, src_t src, bool &ok) {
   uint32_t value = 0;
@@ -435,6 +547,7 @@ TParam::getValue(param_t param, src_t src, bool &ok) {
 
   // TODO добавить проверку источника доступа!
   ok = isAccessRead(param, src) && isValueSet(param);
+
   if (ok) {
     value = params[param].rValue;
 
@@ -444,6 +557,22 @@ TParam::getValue(param_t param, src_t src, bool &ok) {
   }
 
   return value;
+}
+
+//
+uint32_t
+TParam::getValueR(param_t param) {
+  Q_ASSERT(param < PARAM_MAX);
+
+  return params[param].rValue;
+}
+
+//
+uint32_t
+TParam::getValueW(param_t param) {
+  Q_ASSERT(param < PARAM_MAX);
+
+  return params[param].wValue;
 }
 
 //
