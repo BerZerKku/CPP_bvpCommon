@@ -270,7 +270,7 @@ setError(param_t param, src_t src, uint32_t &value) {
     params->setLocalValue(PARAM_error, v);
   }
 
-  return ok;
+  return true;
 }
 
 //
@@ -367,7 +367,7 @@ setWarning(param_t param, src_t src, uint32_t &value) {
   }
 
   if (ok && (param != PARAM_defWarning)) {
-    value |= params->getValue(PARAM_defWarning, src, ok);
+    v|= params->getValue(PARAM_defWarning, src, ok);
   }
 
   if (ok && (param != PARAM_prmWarning)) {
@@ -382,7 +382,7 @@ setWarning(param_t param, src_t src, uint32_t &value) {
     params->setLocalValue(PARAM_warning, v);
   }
 
-  return ok;
+  return true;
 }
 
 //
@@ -491,8 +491,6 @@ TParam::TParam() {
 
   // TODO Подумать над инициализацией параметров которые не надо считывать.
   setLocalValue(PARAM_control, 0);
-  setLocalValue(PARAM_error, 1);
-  setLocalValue(PARAM_warning, 1);
 }
 
 //
