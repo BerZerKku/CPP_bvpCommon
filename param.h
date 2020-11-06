@@ -55,8 +55,9 @@ enum src_t {
 enum ctrl_t {
   CTRL_MIN = 1,
   //
-  CTRL_resetErrors = CTRL_MIN,
-  CTRL_resetIndication,
+  CTRL_resetIndication = CTRL_MIN,
+  CTRL_resetErrors,
+  CTRL_reset,
   //
   CTRL_MAX
 

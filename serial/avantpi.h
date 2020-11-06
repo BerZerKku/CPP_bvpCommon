@@ -7,6 +7,11 @@ namespace BVP {
 
 class TAvantPi : public TProtocolAvant {
 
+  /// Значение байта данных для команды COM_AVANT_control "Управление"
+  enum comControlBytes_t {
+      COM_CONTROL_BYTES_selfReset = 1 //<
+  };
+
 public:
   TAvantPi();
 

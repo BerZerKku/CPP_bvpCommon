@@ -57,6 +57,7 @@ TProtocolAvant::read() {
 
     if (ok) {
       ok  = vReadAvant();
+      cntLostMessage = 0;
     }
 
     if (!ok) {
@@ -215,7 +216,7 @@ TProtocolAvant::vTick() {
 //
 bool
 TProtocolAvant::isConnection() const {
-  return cntLostMessage < kMaxLostMessage;
+  return (mState != STATE_disable) && (cntLostMessage < kMaxLostMessage);
 }
 
 //
@@ -244,15 +245,15 @@ TProtocolAvant::setCom(uint8_t com) {
 //
 void
 TProtocolAvant::addByte(uint8_t byte, uint16_t nbyte) {
-  nbyte = (nbyte > 0) ? nbyte - 1 : mBuf[POS_DATA_LEN];
+  nbyte = (nbyte > 0) ? nbyte - 1 : mBuf[POS_DATA_LEN] + 1;
 
   Q_ASSERT(nbyte < (mSize - kMinLenFrame));
 
-  if (mBuf[POS_DATA_LEN]< nbyte) {
-    mBuf[POS_DATA_LEN] = static_cast<uint8_t> (nbyte + 1);
+  if (mBuf[POS_DATA_LEN] < nbyte) {
+    mBuf[POS_DATA_LEN] = static_cast<uint8_t> (nbyte);
   }
 
-  mBuf[POS_DATA + nbyte] = byte;
+  mBuf[POS_DATA + nbyte - 1] = byte;
 }
 
 uint8_t TProtocolAvant::calcCRC(const uint8_t buf[], size_t len, uint8_t crc) {

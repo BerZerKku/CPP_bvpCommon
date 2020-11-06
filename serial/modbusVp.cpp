@@ -302,7 +302,7 @@ TModbusVp::vTick() {
 //
 bool
 TModbusVp::isConnection() const {
-  return cntLostMessage < kMaxLostMessage;
+  return (mState != STATE_disable) && (cntLostMessage < kMaxLostMessage);
 }
 
 //

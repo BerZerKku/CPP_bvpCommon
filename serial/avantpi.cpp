@@ -20,8 +20,9 @@ BVP::TAvantPi::vWriteAvant() {
     ok = fillComControl(value);
   }
 
+  // Если других команд нет, то команда опроса
   if (!ok) {
-    setCom(0x31);
+    setCom(COM_AVANT_getError);
     ok = true;
   }
 
@@ -91,25 +92,29 @@ bool
 TAvantPi::fillComControl(uint32_t value) {
   bool ok = false;
 
-  enum comControlBytes_t {
-      COM_CONTROL_BYTES_selfReset = 1
-  };
-
   Q_ASSERT(value < CTRL_MAX);
   if (value < CTRL_MAX) {
 
-    switch(value) {
+    switch(static_cast<ctrl_t> (value)) {
 
       case CTRL_resetErrors: {
-        setCom(COM_AVANT_control);
+        setCom(COM_AVANT_setControl);
         addByte(COM_CONTROL_BYTES_selfReset);
         ok = true;
       } break;
 
       case CTRL_resetIndication: {
-        setCom(COM_AVANT_prmResetInd);
+        setCom(COM_AVANT_setPrmResetInd);
         ok = true;
       } break;
+
+      case CTRL_reset: {
+        setCom(COM_AVANT_setControl);
+        addByte(COM_CONTROL_BYTES_selfReset);
+        ok = true;
+      } break;
+
+      case CTRL_MAX: break;
 
     }
   }

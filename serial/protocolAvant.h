@@ -8,9 +8,10 @@
 namespace BVP {
 
 enum comAvant_t {
-  COM_AVANT_time = 0x32,
-  COM_AVANT_control = 0x72,
-  COM_AVANT_prmResetInd = 0x9A
+  COM_AVANT_getError = 0x31,        ///< Неисправности и предупреждения
+  COM_AVANT_getTime = 0x32,         ///< Дата/время/журнал
+  COM_AVANT_setControl = 0x72,      ///< Управление
+  COM_AVANT_setPrmResetInd = 0x9A   ///< Выключение индикации Приемника
 };
 
 class TProtocolAvant : public TSerialProtocol {

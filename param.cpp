@@ -26,9 +26,9 @@ getBlkComPrm(param_t param, src_t src, uint32_t &value) {
 
 /** Считывание сигналов управления.
  *
- *  Для SRC_pi возвращается самый приоритетный на данный момент сигнал
+ *  - Для SRC_pi возвращается самый приоритетный на данный момент сигнал
  *  управления ctrl_t. После считывания данный сигнал будет сброшен.
- *  Для SRC_vkey возвращается текущее состояние сигналов управления.
+ *  - Для SRC_vkey возвращается текущее состояние сигналов управления.
  *
  *  @param[in] params Параметры.
  *  @param[in] src Источник доступа.
@@ -104,8 +104,8 @@ setBlkComPrmAll(param_t param, src_t src, uint32_t &value) {
 
 /** Установка блокированных команд приемника.
  *
- *  Запись с SRC_pi идет без изменений.
- *  Запись с SRC_vkey идет переключением текущих состояний блокировки для
+ *  - Запись с SRC_pi идет без изменений.
+ *  - Запись с SRC_vkey идет переключением текущих состояний блокировки для
  *  команд по маске, т.е. тех где бит равен 1. При этом состояние меняется
  *  только в случае локального управления и отсутствии общей блокировки команд
  *  приемника.
@@ -162,21 +162,21 @@ setBtnSA(param_t param, src_t src, uint32_t &value) {
 
   Q_ASSERT((param == PARAM_vpBtnSA32to01) || (param == PARAM_vpBtnSA64to33));
 
-  if (src == SRC_vkey) {
-    if (param == PARAM_vpBtnSA32to01) {
-      param = PARAM_blkComPrm32to01;
-    } else if (param == PARAM_blkComPrm64to33) {
-      param = PARAM_blkComPrm64to33;
-    } else {
-      param = PARAM_MAX;
-    }
-
-    if ((param != PARAM_MAX) && params->isValueSet(param)) {
-      uint32_t tvalue = value ^ params->getValue(param, src, ok);
+  if (src == SRC_vkey) {    
+      uint32_t tvalue = (params->getValue(param, src, ok) ^ value) & value;
 
       if (tvalue > 0) {
-        params->setValue(param, src, value);
-      }
+        if (param == PARAM_vpBtnSA32to01) {
+          param = PARAM_blkComPrm32to01;
+        } else if (param == PARAM_blkComPrm64to33) {
+          param = PARAM_blkComPrm64to33;
+        } else {
+          param = PARAM_MAX;
+        }
+
+        if (param != PARAM_MAX) {
+          params->setValue(param, src, tvalue);
+        }
     }
     ok = true;
   }
@@ -186,10 +186,13 @@ setBtnSA(param_t param, src_t src, uint32_t &value) {
 
 /** Установка сигналов управления.
  *
- *  Запись с SRC_pi означает сброс бит по маске. Если это первая установка
+ *  - Запись с SRC_pi означает сброс бит по маске. Если это первая установка
  *  данного параметра, в него будет записан 0.
- *  Запись с SRC_vkey значения не 0 означает нажатие на кнопку сброса индикации,
+ *  - Запись с SRC_vkey значения не 0 означает нажатие на кнопку сброса индикации,
  *  т.е. сброс индикации команд, неисправностей, предупреждений и их реле.
+ *  Обработка нажатия производится только в случае локального управления. Этого
+ *  достаточно для форимрования сигнала сброса индикации команд. Сигнал сброса
+ *  индикации неисправностей/предупреждений формируется толко при их наличии.
  *
  *  @param[in] param Параметр.
  *  @param[in] src Источник доступа.
@@ -225,9 +228,22 @@ bool setControl(param_t param, src_t src, uint32_t &value) {
 
           Q_ASSERT(ok);
           if (ok) {
+            // сброс индикации
             value = v | (1 << (CTRL_resetIndication - CTRL_MIN));
-//            value = value | (1 << CTRL_resetErrors);
-            // TODO добавить сброс неисправностей.
+
+            bool tok = false;
+
+            // проверка наличия неисправностей для их сброса
+            v = params->getValue(PARAM_error, src, tok);
+            if (tok && (v > 0)) {
+              value = value | (1 << (CTRL_resetErrors - CTRL_MIN));
+            }
+
+            // проверка наличия предупреждений для их сброса
+            v = params->getValue(PARAM_warning, src, tok);
+            if (tok && (v > 0)) {
+              value = value | (1 << (CTRL_resetErrors - CTRL_MIN));
+            }
           }
         }
       }
