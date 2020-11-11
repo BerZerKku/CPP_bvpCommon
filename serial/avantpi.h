@@ -1,5 +1,5 @@
-#ifndef AVANTPI_H
-#define AVANTPI_H
+#ifndef AVANT_PI_H
+#define AVANT_PI_H
 
 #include "protocolAvant.h"
 
@@ -28,4 +28,4 @@ private:
 
 } // namespace BVP
 
-#endif // AVANTPI_H
+#endif // AVANT_PI_H

@@ -11,6 +11,7 @@ TSerialProtocol::TSerialProtocol() :
   mLen(0),
   mNetAddress(0xFF),
   mTimeReadStart(0),
+  mTimeUs(0),
   mTimeTickUs(0),
   mTimeOneByteUs(0) {
 
