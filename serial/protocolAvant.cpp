@@ -4,7 +4,8 @@
 namespace BVP {
 
 //
-TProtocolAvant::TProtocolAvant() :
+TProtocolAvant::TProtocolAvant(regime_t regime) :
+  TSerialProtocol(regime),
   mSrc(SRC_MAX),
   mState(STATE_disable),
   cntLostMessage(kMaxLostMessage) {
@@ -25,7 +26,7 @@ TProtocolAvant::setEnable(bool enable) {
   Q_ASSERT(mSize != 0);
 
   if (enable) {
-    mState = STATE_idle;
+    setDefaultState();
     mLen = 0;
     mTimeUs = 0;
   } else {
@@ -48,12 +49,8 @@ TProtocolAvant::read() {
   bool isread = false;
 
   if (mState == STATE_procReply) {
-    bool ok = true;
-
     uint8_t crcpkg = mBuf[--mLen];
-    if (crcpkg != calcCRC(&mBuf[POS_COM], mLen - POS_COM)) {
-      ok = false;
-    }
+    bool ok = (crcpkg == calcCRC(&mBuf[POS_COM], mLen - POS_COM));
 
     if (ok) {
       ok  = vReadAvant();
@@ -74,7 +71,7 @@ TProtocolAvant::read() {
 //
 void
 TProtocolAvant::readError() {
-  if (mState == STATE_procReply) {
+  if (mState == STATE_waitForReply) {
     mState = STATE_errorReply;
     mTimeUs = 0;
   }
@@ -83,6 +80,7 @@ TProtocolAvant::readError() {
 //
 bool
 TProtocolAvant::write() {
+
   if (mState == STATE_idle) {
     bool ok = true;
     uint16_t len = 0;
@@ -103,6 +101,8 @@ TProtocolAvant::write() {
         mTimeUs = 0;
         mState = STATE_reqSend;
       }
+    } else {
+      setDefaultState();
     }
   }
 
@@ -129,13 +129,15 @@ TProtocolAvant::pop(uint8_t *data[]) {
 void TProtocolAvant::sendFinished() {
   Q_ASSERT(mState == STATE_waitSendFinished || mState == STATE_disable);
 
-  if (mState == STATE_waitSendFinished) {
-    mPos = 0;
-    mLen = 0;
-    mTimeUs = 0;
-    mState = STATE_waitForReply;
-  } else {
-    mState = STATE_idle;
+  if (mState != STATE_disable) {
+    if (mState == STATE_waitSendFinished) {
+      mPos = 0;
+      mLen = 0;
+      mTimeUs = 0;
+      mState = STATE_waitForReply;
+    } else {
+      setDefaultState();
+    }
   }
 }
 
@@ -199,17 +201,15 @@ TProtocolAvant::vSetup(uint32_t baudrate, bool parity, uint8_t stopbits) {
 //
 void
 TProtocolAvant::vTick() {
-  if (mState == STATE_disable) {
-    return;
-  }
+  if (mState != STATE_disable) {
+    if (mTimeUs < kMaxTimeToResponseUs) {
+      mTimeUs += mTimeTickUs;
+    }
 
-  if (mTimeUs < kMaxTimeToResponseUs) {
-    mTimeUs += mTimeTickUs;
-  }
-
-  if (mTimeUs >= kMaxTimeToResponseUs) {
-    mState = STATE_idle;
-    incLostMessageCounter();
+    if (mTimeUs >= kMaxTimeToResponseUs) {
+      setDefaultState();
+      incLostMessageCounter();
+    }
   }
 }
 
@@ -256,12 +256,22 @@ TProtocolAvant::addByte(uint8_t byte, uint16_t nbyte) {
   mBuf[POS_DATA + nbyte - 1] = byte;
 }
 
-uint8_t TProtocolAvant::calcCRC(const uint8_t buf[], size_t len, uint8_t crc) {
+//
+uint8_t
+TProtocolAvant::calcCRC(const uint8_t buf[], size_t len, uint8_t crc) {
   for(size_t i = 0; i < len; i++) {
     crc += buf[i];
   }
 
   return crc;
+}
+
+//
+void
+TProtocolAvant::setDefaultState() {
+  mState = (mRegime == REGIME_master) ? STATE_idle : STATE_waitForReply;
+  mPos = 0;
+  mLen = 0;
 }
 
 } // namespace BVP

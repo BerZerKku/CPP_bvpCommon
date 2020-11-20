@@ -8,7 +8,7 @@ namespace BVP {
 class TAvantPc : public TProtocolAvant {
 
 public:
-  TAvantPc();
+  TAvantPc(regime_t regime);
 
   bool vWriteAvant() override;
   bool vReadAvant() override;

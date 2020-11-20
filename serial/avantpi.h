@@ -13,7 +13,7 @@ class TAvantPi : public TProtocolAvant {
   };
 
 public:
-  TAvantPi();
+  TAvantPi(regime_t regime);
 
   bool vWriteAvant() override;
   bool vReadAvant() override;

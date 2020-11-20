@@ -3,8 +3,11 @@
 namespace BVP {
 
 
-TAvantPc::TAvantPc() : comRx(COM_AVANT_getTime) {
+TAvantPc::TAvantPc(regime_t regime) :
+  TProtocolAvant(regime),
+  comRx(COM_AVANT_getTime) {
 
+  Q_ASSERT(regime == REGIME_slave);
 }
 
 //
@@ -13,7 +16,9 @@ BVP::TAvantPc::vWriteAvant() {
   bool ok = false;
   uint32_t value = 0;
 
-  if (isComRx == true) {
+  qDebug() << "vWriteAvant(), isComRx = " << isComRx;
+
+  if (isComRx == true) {    
     if (comRx == COM_AVANT_getError) {
       setCom(comRx);
 
@@ -80,15 +85,18 @@ BVP::TAvantPc::vWriteAvant() {
       //        mBuf[pos++] = value;
       //      }
 
-      uint8_t pos = mBuf[POS_DATA_LEN];
+
 
       if (ok) {
-        Q_ASSERT((pos == 20) || (pos == 28));
+        uint8_t pos = mBuf[POS_DATA_LEN];
+        Q_ASSERT((pos == 16) || (pos == 24));
       }
     }
 
     isComRx = false;
   }
+
+  qDebug() << "vWriteAvant(), ok = " << ok;
 
   return ok;
 }

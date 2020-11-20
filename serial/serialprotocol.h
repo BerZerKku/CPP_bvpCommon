@@ -12,7 +12,13 @@ class TSerialProtocol {
   static const uint32_t kMaxTimeFromReadFirstByte = 10000000UL;
 
 public:
-  TSerialProtocol();
+ /// Режим работы протокола
+ enum regime_t {
+   REGIME_slave = 0, ///< Ведомый.
+   REGIME_master     ///< Ведущий.
+ };
+
+ TSerialProtocol(regime_t regime);
   virtual ~TSerialProtocol();
 
   /** Запуск или останов работы протокола.
@@ -112,12 +118,27 @@ public:
     return mTimeReadStart;
   }
 
-protected:
-  TParam * const mParam;  /// Параметры.
-  uint8_t * const mBuf;   /// Буфер данных.
-  const uint16_t mSize;   /// Размер буфера данных.
-  uint16_t mPos;          /// Текущая позиция в буфере.
-  uint16_t mLen;          /// Количество байт данных по протоколу.
+ protected:
+
+  /// Список состояний протокола.
+  enum state_t {
+    STATE_disable = 0,
+    STATE_idle,
+    STATE_reqSend,
+    STATE_waitSendFinished,
+    STATE_waitForReply,
+    STATE_procReply,
+    STATE_errorReply,
+    //
+    STATE_MAX
+  };
+
+  regime_t mRegime;       ///< Режим работы протокола.
+  TParam * const mParam;  ///< Параметры.
+  uint8_t * const mBuf;   ///< Буфер данных.
+  const uint16_t mSize;   ///< Размер буфера данных.
+  uint16_t mPos;          ///< Текущая позиция в буфере.
+  uint16_t mLen;          ///< Количество байт данных по протоколу.
   const uint8_t mNetAddress;  ///< Адрес опрашиваемого устройства.
   uint32_t mTimeReadStart;    ///< Время прошедшее с момента приема первого байта.
   uint32_t mTimeUs;           ///< Счетчик времени.

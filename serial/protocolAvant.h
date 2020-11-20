@@ -15,20 +15,6 @@ enum comAvant_t {
 };
 
 class TProtocolAvant : public TSerialProtocol {
-
-  /// Список состояний протокола.
-  enum state_t {
-    STATE_disable = 0,
-    STATE_idle,
-    STATE_reqSend,
-    STATE_waitSendFinished,
-    STATE_waitForReply,
-    STATE_procReply,
-    STATE_errorReply,
-    //
-    STATE_MAX
-  };
-
   /// Максимальное время для получения ответа (в данной реализации), мкс.
   const uint32_t kMaxTimeToResponseUs = 300000UL;
   /// Максимальное количество сообщений без ответа до потери связи.
@@ -37,8 +23,7 @@ class TProtocolAvant : public TSerialProtocol {
   const uint16_t kMinLenFrame = 5;  // pmbl1 + pmbl2 + cm + data_len + check_sum
 
 public:
-
-  TProtocolAvant();
+  TProtocolAvant(regime_t regime);
   ~TProtocolAvant() override;
 
   bool setEnable(bool enable) override;
@@ -114,6 +99,10 @@ protected:
    *  @return true если было принято и обработано сообщение, иначе false.
    */
   virtual bool vReadAvant() = 0;
+
+ private:
+  /// Устанавливает состояние по умолчанию.
+  void setDefaultState();
 };
 
 } // namespace BVP

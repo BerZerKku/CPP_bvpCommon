@@ -3,8 +3,10 @@
 namespace BVP {
 
 
-TAvantPi::TAvantPi() {
+TAvantPi::TAvantPi(regime_t regime) :
+  TProtocolAvant(regime) {
 
+  Q_ASSERT(regime == REGIME_master);
 }
 
 //

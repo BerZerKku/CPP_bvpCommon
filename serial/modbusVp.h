@@ -9,19 +9,6 @@ namespace BVP {
 
 class TModbusVp : public TSerialProtocol {
 
-  /// Список состояний протокола.
-  enum state_t {
-    STATE_disable = 0,
-    STATE_idle,
-    STATE_reqSend,
-    STATE_waitForSend,
-    STATE_waitForReply,
-    STATE_procReply,
-    STATE_errorReply,
-    //
-    STATE_MAX
-  };
-
   enum regRead_t {
     REG_READ_MIN = 1,
     //
@@ -67,7 +54,7 @@ class TModbusVp : public TSerialProtocol {
   const uint16_t kMaxSizeFrameRtu = 256;
 
 public:
-  TModbusVp();
+  TModbusVp(regime_t regime);
   ~TModbusVp() override;
 
   bool setEnable(bool enable) override;

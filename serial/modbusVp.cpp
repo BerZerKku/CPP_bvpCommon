@@ -42,12 +42,15 @@ static const uint16_t crc_ibm_table[256] = {
 
 
 //
-TModbusVp::TModbusVp() :
+TModbusVp::TModbusVp(regime_t regime) :
+  TSerialProtocol(regime),
   mSrc(SRC_MAX),
   mState(STATE_disable),
   mTimeToCompleteUs(0),
   mTimeToErrorUs(0),
   cntLostMessage(kMaxLostMessage) {
+
+  Q_ASSERT(regime == REGIME_master);
 }
 
 //
@@ -192,7 +195,7 @@ TModbusVp::pop(uint8_t *data[]) {
 
   if (mState == STATE_reqSend) {
     len = mLen;
-    mState = STATE_waitForSend;
+    mState = STATE_waitSendFinished;
   }
 
   return len;
@@ -200,9 +203,9 @@ TModbusVp::pop(uint8_t *data[]) {
 
 //
 void TModbusVp::sendFinished() {
-  Q_ASSERT(mState == STATE_waitForSend || mState == STATE_disable);
+  Q_ASSERT(mState == STATE_waitSendFinished || mState == STATE_disable);
 
-  if (mState == STATE_waitForSend) {
+  if (mState == STATE_waitSendFinished) {
     mLen = 0;
     mPos = 0;
     mTimeUs = 0;

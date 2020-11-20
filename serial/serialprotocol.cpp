@@ -3,7 +3,8 @@
 namespace BVP {
 
 //
-TSerialProtocol::TSerialProtocol() :
+TSerialProtocol::TSerialProtocol(regime_t regime) :
+  mRegime(regime),
   mParam(nullptr),
   mBuf(nullptr),
   mSize(0),
