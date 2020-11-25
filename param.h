@@ -9,22 +9,29 @@ namespace BVP {
 
 enum param_t {
   //
-  PARAM_control = 0,          ///< Сигналы управления.
+  PARAM_control = 0,      ///< Сигналы управления.
   // Текущее состояние
-  PARAM_error,                ///< Флаг наличия неисправности.
-  PARAM_warning,              ///< Флаг наличия предупреждения.
-  PARAM_defError,             ///< Неисправности Защиты.
-  PARAM_defWarning,           ///< Предупреждения Защиты.
-  PARAM_prmError,             ///< Неисправности Приемника.
-  PARAM_prmWarning,           ///< Педупреждения Приемника.
-  PARAM_prdError,             ///< Неисправности Передатчика.
-  PARAM_prdWarning,           ///< Педупреждения Передатчика.
-  PARAM_glbError,             ///< Неисправности Общие.
-  PARAM_glbWarning,           ///< Педупреждения Общие.
+  PARAM_error,            ///< Флаг наличия неисправности.
+  PARAM_warning,          ///< Флаг наличия предупреждения.
+  PARAM_defError,         ///< Неисправности Защиты.
+  PARAM_defWarning,       ///< Предупреждения Защиты.
+  PARAM_prmError,         ///< Неисправности Приемника.
+  PARAM_prmWarning,       ///< Педупреждения Приемника.
+  PARAM_prdError,         ///< Неисправности Передатчика.
+  PARAM_prdWarning,       ///< Педупреждения Передатчика.
+  PARAM_glbError,         ///< Неисправности Общие.
+  PARAM_glbWarning,       ///< Педупреждения Общие.
   PARAM_defRemoteError,
   PARAM_prmRemoteError,
   PARAM_prdRemoteError,
   PARAM_glbRemoteError,
+  // Дата и время
+  PARAM_dateYear,         ///< Год.
+  PARAM_dateMonth,        ///< Месяц.
+  PARAM_dateDay,          ///< День.
+  PARAM_timeHour,         ///< Часы.
+  PARAM_timeMin,          ///< Минуты.
+  PARAM_timeSec,          ///< Секунды.
   // Параметры панели виртуальных ключей
   PARAM_dirControl,       ///< Управление ключами (SAC2).
   PARAM_blkComPrmAll,     ///< Блокировка всех выходов приемника (SAC1).

@@ -36,54 +36,13 @@ bool
 TAvantPi::vReadAvant() {
   bool ok = false;
 
-  if (mBuf[POS_COM] == 0x31) {
-    uint16_t pos = POS_DATA;
-    uint32_t value = 0;
+  switch(static_cast<comAvant_t> (mBuf[POS_COM])) {
+    case COM_AVANT_getError: {
+      ok = comGetError();
+    } break;
+    case COM_AVANT_getTime: {
 
-    if (mBuf[POS_DATA_LEN] >= 20) {
-      value = mBuf[pos++];
-      value = (value << 8) + mBuf[pos++];
-      mParam->setValue(PARAM_defError, mSrc, value);
-      value = mBuf[pos++];
-      value = (value << 8) + mBuf[pos++];
-      mParam->setValue(PARAM_defWarning, mSrc, value);
-      value = mBuf[pos++];
-      value = (value << 8) + mBuf[pos++];
-      mParam->setValue(PARAM_prmError, mSrc, value);
-      value = mBuf[pos++];
-      value = (value << 8) + mBuf[pos++];
-      mParam->setValue(PARAM_prmWarning, mSrc, value);
-      value = mBuf[pos++];
-      value = (value << 8) + mBuf[pos++];
-      mParam->setValue(PARAM_prdError, mSrc, value);
-      value = mBuf[pos++];
-      value = (value << 8) + mBuf[pos++];
-      mParam->setValue(PARAM_prdWarning, mSrc, value);
-      value = mBuf[pos++];
-      value = (value << 8) + mBuf[pos++];
-      mParam->setValue(PARAM_glbError, mSrc, value);
-      value = mBuf[pos++];
-      value = (value << 8) + mBuf[pos++];
-      mParam->setValue(PARAM_glbWarning, mSrc, value);
-      pos += 4;
-      Q_ASSERT(pos == (POS_DATA + 20));
-    }
-
-    if (mBuf[POS_DATA_LEN] >= 28) {
-      value = mBuf[pos++];
-      value = (value << 8) + mBuf[pos++];
-      mParam->setValue(PARAM_defRemoteError, mSrc, value);
-      value = mBuf[pos++];
-      value = (value << 8) + mBuf[pos++];
-      mParam->setValue(PARAM_prmRemoteError, mSrc, value);
-      value = mBuf[pos++];
-      value = (value << 8) + mBuf[pos++];
-      mParam->setValue(PARAM_prdRemoteError, mSrc, value);
-      value = mBuf[pos++];
-      value = (value << 8) + mBuf[pos++];
-      mParam->setValue(PARAM_glbRemoteError, mSrc, value);
-      Q_ASSERT(pos == (POS_DATA + 28));
-    }
+    } break;
   }
 
   return ok;
@@ -119,6 +78,63 @@ TAvantPi::fillComControl(uint32_t value) {
       case CTRL_MAX: break;
 
     }
+  }
+
+  return ok;
+}
+
+
+//
+bool
+TAvantPi::comGetError() {
+  bool ok = false;
+  uint16_t pos = POS_DATA;
+  uint32_t value = 0;
+
+  if (mBuf[POS_DATA_LEN] >= 20) {
+    ok = true;
+    value = mBuf[pos++];
+    value = (value << 8) + mBuf[pos++];
+    mParam->setValue(PARAM_defError, mSrc, value);
+    value = mBuf[pos++];
+    value = (value << 8) + mBuf[pos++];
+    mParam->setValue(PARAM_defWarning, mSrc, value);
+    value = mBuf[pos++];
+    value = (value << 8) + mBuf[pos++];
+    mParam->setValue(PARAM_prmError, mSrc, value);
+    value = mBuf[pos++];
+    value = (value << 8) + mBuf[pos++];
+    mParam->setValue(PARAM_prmWarning, mSrc, value);
+    value = mBuf[pos++];
+    value = (value << 8) + mBuf[pos++];
+    mParam->setValue(PARAM_prdError, mSrc, value);
+    value = mBuf[pos++];
+    value = (value << 8) + mBuf[pos++];
+    mParam->setValue(PARAM_prdWarning, mSrc, value);
+    value = mBuf[pos++];
+    value = (value << 8) + mBuf[pos++];
+    mParam->setValue(PARAM_glbError, mSrc, value);
+    value = mBuf[pos++];
+    value = (value << 8) + mBuf[pos++];
+    mParam->setValue(PARAM_glbWarning, mSrc, value);
+    pos += 4;
+    Q_ASSERT(pos == (POS_DATA + 20));
+  }
+
+  if (mBuf[POS_DATA_LEN] >= 28) {
+    value = mBuf[pos++];
+    value = (value << 8) + mBuf[pos++];
+    mParam->setValue(PARAM_defRemoteError, mSrc, value);
+    value = mBuf[pos++];
+    value = (value << 8) + mBuf[pos++];
+    mParam->setValue(PARAM_prmRemoteError, mSrc, value);
+    value = mBuf[pos++];
+    value = (value << 8) + mBuf[pos++];
+    mParam->setValue(PARAM_prdRemoteError, mSrc, value);
+    value = mBuf[pos++];
+    value = (value << 8) + mBuf[pos++];
+    mParam->setValue(PARAM_glbRemoteError, mSrc, value);
+    Q_ASSERT(pos == (POS_DATA + 28));
   }
 
   return ok;

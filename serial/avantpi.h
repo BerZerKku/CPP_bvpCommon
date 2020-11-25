@@ -24,6 +24,8 @@ private:
    *  @return true если команда сформирована, иначе false.
    */
   bool fillComControl(uint32_t value);
+
+  bool comGetError(); ///< Обработчик команды чтения неисправностей и предупр.
 };
 
 } // namespace BVP
