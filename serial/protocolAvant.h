@@ -7,6 +7,19 @@
 
 namespace BVP {
 
+static uint8_t bcd2int(uint8_t bcd) {
+  Q_ASSERT((bcd >> 4) < 0x0A);
+  Q_ASSERT((bcd&0x0F) < 0x0A);
+
+  return (bcd>>4)*10 + (bcd&0x0F);
+}
+
+static uint8_t int2bcd(uint8_t value) {
+  Q_ASSERT(value < 100);
+
+  return ((value/10) << 4) + (value%10);
+}
+
 enum comAvant_t {
   COM_AVANT_getError = 0x31,        ///< Неисправности и предупреждения
   COM_AVANT_getTime = 0x32,         ///< Дата/время/журнал

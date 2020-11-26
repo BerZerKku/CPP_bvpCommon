@@ -5,8 +5,11 @@ namespace BVP {
 
 TAvantPi::TAvantPi(regime_t regime) :
   TProtocolAvant(regime) {
-
   Q_ASSERT(regime == REGIME_master);
+
+  ringComArray.add(COM_AVANT_getError);
+  ringComArray.add(COM_AVANT_getTime);
+
 }
 
 //
@@ -22,9 +25,9 @@ BVP::TAvantPi::vWriteAvant() {
     ok = fillComControl(value);
   }
 
-  // Если других команд нет, то команда опроса
-  if (!ok) {
-    setCom(COM_AVANT_getError);
+  // Если других команд нет, то команда опроса.
+  if (!ok && !ringComArray.isEmpty()) {
+    setCom(ringComArray.get());
     ok = true;
   }
 
@@ -41,7 +44,7 @@ TAvantPi::vReadAvant() {
       ok = comGetError();
     } break;
     case COM_AVANT_getTime: {
-
+      ok = comGetTime();
     } break;
   }
 
@@ -83,7 +86,6 @@ TAvantPi::fillComControl(uint32_t value) {
   return ok;
 }
 
-
 //
 bool
 TAvantPi::comGetError() {
@@ -117,7 +119,12 @@ TAvantPi::comGetError() {
     value = mBuf[pos++];
     value = (value << 8) + mBuf[pos++];
     mParam->setValue(PARAM_glbWarning, mSrc, value);
-    pos += 4;
+    value = mBuf[pos++];
+    value = (value << 8) + mBuf[pos++];
+    mParam->setValue(PARAM_prm2Warning, mSrc, value);
+    value = mBuf[pos++];
+    value = (value << 8) + mBuf[pos++];
+    mParam->setValue(PARAM_prm2Error, mSrc, value);
     Q_ASSERT(pos == (POS_DATA + 20));
   }
 
@@ -135,6 +142,38 @@ TAvantPi::comGetError() {
     value = (value << 8) + mBuf[pos++];
     mParam->setValue(PARAM_glbRemoteError, mSrc, value);
     Q_ASSERT(pos == (POS_DATA + 28));
+  }
+
+  return ok;
+}
+
+//
+bool
+TAvantPi::comGetTime() {
+  bool ok = false;
+  uint16_t pos = POS_DATA;
+  uint32_t value = 0;
+
+  if (mBuf[POS_DATA_LEN] >= 6) {
+    mParam->setValue(PARAM_dateYear, mSrc, bcd2int(mBuf[pos++]));
+    mParam->setValue(PARAM_dateMonth, mSrc, bcd2int(mBuf[pos++]));
+    mParam->setValue(PARAM_dateDay, mSrc, bcd2int(mBuf[pos++]));
+    mParam->setValue(PARAM_timeHour, mSrc, bcd2int(mBuf[pos++]));
+    mParam->setValue(PARAM_timeMin, mSrc, bcd2int(mBuf[pos++]));
+    mParam->setValue(PARAM_timeSec, mSrc, bcd2int(mBuf[pos++]));
+    Q_ASSERT(pos == (POS_DATA + 6));
+  }
+
+  if (mBuf[POS_DATA_LEN] >= 8) {
+    value = *(reinterpret_cast<uint16_t*> (&mBuf[pos]));
+    pos += sizeof(uint16_t);
+    mParam->setValue(PARAM_timeMSec, mSrc, value);
+    Q_ASSERT(pos == (POS_DATA + 8));
+  }
+
+  if (mBuf[POS_DATA_LEN] >= 21) {
+    // TODO Добавить обработку записи журнала и запрос для него!
+    Q_ASSERT(pos == (POS_DATA + 21));
   }
 
   return ok;

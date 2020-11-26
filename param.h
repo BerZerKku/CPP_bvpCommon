@@ -17,14 +17,16 @@ enum param_t {
   PARAM_defWarning,       ///< Предупреждения Защиты.
   PARAM_prmError,         ///< Неисправности Приемника.
   PARAM_prmWarning,       ///< Педупреждения Приемника.
+  PARAM_prm2Error,        ///< Неисправности Приемника 2.
+  PARAM_prm2Warning,      ///> Педупреждения Приемника 2.
   PARAM_prdError,         ///< Неисправности Передатчика.
   PARAM_prdWarning,       ///< Педупреждения Передатчика.
   PARAM_glbError,         ///< Неисправности Общие.
   PARAM_glbWarning,       ///< Педупреждения Общие.
-  PARAM_defRemoteError,
-  PARAM_prmRemoteError,
-  PARAM_prdRemoteError,
-  PARAM_glbRemoteError,
+  PARAM_defRemoteError,   ///< Неисправности Защиты удаленного аппарата.
+  PARAM_prmRemoteError,   ///< Неисправности Приемника удаленного аппарата.
+  PARAM_prdRemoteError,   ///< Неисправности Передатчика удаленного аппарата.
+  PARAM_glbRemoteError,   ///< Неисправности Общие удаленного аппарата.
   // Дата и время
   PARAM_dateYear,         ///< Год.
   PARAM_dateMonth,        ///< Месяц.
@@ -32,6 +34,7 @@ enum param_t {
   PARAM_timeHour,         ///< Часы.
   PARAM_timeMin,          ///< Минуты.
   PARAM_timeSec,          ///< Секунды.
+  PARAM_timeMSec,         ///< Миллисекунды.
   // Параметры панели виртуальных ключей
   PARAM_dirControl,       ///< Управление ключами (SAC2).
   PARAM_blkComPrmAll,     ///< Блокировка всех выходов приемника (SAC1).

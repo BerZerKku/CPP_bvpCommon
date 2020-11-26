@@ -41,7 +41,6 @@ getControl(param_t param, src_t src, uint32_t &value) {
   bool ok = false;
   TParam *params = TParam::getInstance();
 
-  UNUSED(param);
   Q_ASSERT(param == PARAM_control);
 
   switch(src) {

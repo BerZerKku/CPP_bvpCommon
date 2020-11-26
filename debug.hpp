@@ -11,10 +11,16 @@
 #include <errno.h>
 
 #if defined(QT_CORE_LIB)
-  #include <QDebug>
+
+#include <QDebug>
+#define QDEBUG(x) qDebug() << x;
+
 #else
-  #include <assert.h>
-  #define Q_ASSERT(x) (assert(x))
+
+#include <assert.h>
+#define Q_ASSERT(x) (assert(x))
+#define QDEBUG(x) void (0)
+
 #endif
 
 #ifdef __cplusplus
