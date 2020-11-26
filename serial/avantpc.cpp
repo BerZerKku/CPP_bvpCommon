@@ -16,8 +16,6 @@ BVP::TAvantPc::vWriteAvant() {
   bool ok = false;
   uint32_t value = 0;
 
-  qDebug() << "vWriteAvant(), isComRx = " << isComRx;
-
   if (isComRx == true) {    
     if (comRx == COM_AVANT_getError) {
       setCom(comRx);
@@ -95,8 +93,6 @@ BVP::TAvantPc::vWriteAvant() {
 
     isComRx = false;
   }
-
-  qDebug() << "vWriteAvant(), ok = " << ok;
 
   return ok;
 }
