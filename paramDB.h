@@ -99,6 +99,18 @@ TParam::paramFields_t TParam::params[PARAM_MAX] = {
      .isValue = false, .rValue = 0, .wValue = 0,
      .set = nullptr, .get = nullptr},
     //
+    // Общие параметры
+    //
+    {.param = PARAM_alarmReset,
+     .isValue = false, .rValue = 0, .wValue = 0,
+     .set = nullptr, .get = nullptr},
+    //
+    // Внутренние параметры
+    //
+    {.param = PARAM_extAlarm,
+     .isValue = false, .rValue = 0, .wValue = 0,
+     .set = nullptr, .get = nullptr},
+    //
     // Параметры панели виртуальных ключей
     //
     {.param = PARAM_dirControl,
